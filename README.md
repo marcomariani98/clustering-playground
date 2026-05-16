@@ -128,6 +128,16 @@ Alcuni algoritmi sono volutamente semplificati o adattati per finalità visuali 
 
 ---
 
+# Demo Online
+
+👉 https://marcomariani98.github.io/Visualizzazione-Cluster/
+
+Il progetto può essere eseguito direttamente dal browser tramite GitHub Pages.
+
+
+
+---
+
 # Avvio locale
 
 È sufficiente aprire:
