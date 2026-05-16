@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualizzazione Clustering</title>
+  <style>
+    :root {
+      --bg: #edf2f7;
+      --surface: #ffffff;
+      --panel: #f7f9fc;
+      --panel-strong: #edf2f7;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d7deea;
+      --accent: #1769e0;
+      --accent-dark: #1154b5;
+      --accent-soft: #e8f1ff;
+      --danger: #b4232e;
+      --danger-bg: #fff1f2;
+      --canvas: #fbfcff;
+      --shadow: 0 22px 60px rgba(23, 32, 51, 0.14);
+      --small-shadow: 0 8px 24px rgba(23, 32, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+      background:
+        linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
+      color: var(--ink);
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 22px;
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .algorithm-picker {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+    }
+
+    .algorithm-picker select {
+      min-width: 220px;
+      background: #fff;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 1px 2px rgba(24, 32, 47, 0.06);
+      transition: border-color 0.15s, background-color 0.15s, color 0.15s, transform 0.15s;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    button.active,
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(23, 105, 224, 0.22);
+    }
+
+    button.primary:hover {
+      background: var(--accent-dark);
+    }
+
+    button.danger {
+      color: var(--danger);
+      background: var(--danger-bg);
+      border-color: #fecdd3;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      min-height: 0;
+    }
+
+    .canvas-wrap {
+      min-width: 0;
+      padding: 20px;
+    }
+
+    #clusterCanvas {
+      display: block;
+      width: 100%;
+      height: calc(100vh - 104px);
+      min-height: 480px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--canvas);
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar {
+      padding: 20px;
+      background: var(--surface);
+      border-left: 1px solid var(--line);
+      overflow: auto;
+    }
+
+    .section {
+      padding: 16px;
+      margin: 0 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: var(--small-shadow);
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .range-label {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+    }
+
+    .range-label input {
+      grid-column: 1 / -1;
+    }
+
+    .range-value {
+      color: var(--ink);
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      min-width: 96px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.2);
+      border-color: var(--accent);
+    }
+
+    .inline-check {
+      display: flex;
+      grid-template-columns: none;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .status {
+      min-height: 22px;
+      margin: 0;
+      color: var(--muted);
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .metric-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      font-size: 13px;
+    }
+
+    .metric-name {
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .metric-value {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+
+    .metric-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.06);
+    }
+
+    .metric-trend {
+      min-width: 14px;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .quality-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .quality-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .quality-legend i {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .quality-legend .good-dot {
+      background: #16a34a;
+    }
+
+    .quality-legend .medium-dot {
+      background: #eab308;
+    }
+
+    .quality-legend .bad-dot {
+      background: #dc2626;
+    }
+
+    .quality-good .metric-dot {
+      background: #16a34a;
+    }
+
+    .quality-medium .metric-dot {
+      background: #eab308;
+    }
+
+    .quality-bad .metric-dot {
+      background: #dc2626;
+    }
+
+    .quality-neutral .metric-dot {
+      background: #94a3b8;
+    }
+
+    .quality-plain {
+      background: #f8fafc;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .legend {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    #runKmeans,
+    #stepKmeans,
+    #runSpectral,
+    #stepSpectral,
+    #runFuzzy,
+    #stepFuzzy,
+    #runMeanShift,
+    #stepMeanShift,
+    #runGmm,
+    #stepGmm,
+    #runDbscan,
+    #stepDbscan,
+    #runHdbscan,
+    #stepHdbscan,
+    #runHcluster,
+    #stepHcluster {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      #clusterCanvas {
+        height: 56vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1 class="title">Clustering</h1>
+      <nav class="tabs" aria-label="Algoritmi">
+        <label class="algorithm-picker">
+          Algoritmo
+          <select id="algorithmSelect">
+            <optgroup label="Base / Soft">
+              <option value="kmeans">K-Means</option>
+              <option value="fuzzy">Fuzzy C-Means</option>
+              <option value="gmm">GMM</option>
+            </optgroup>
+            <optgroup label="Densita">
+              <option value="dbscan">DBSCAN</option>
+              <option value="hdbscan">HDBSCAN</option>
+              <option value="meanshift">Mean Shift</option>
+            </optgroup>
+            <optgroup label="Struttura">
+              <option value="spectral">Spectral</option>
+              <option value="hcluster">HCluster</option>
+            </optgroup>
+          </select>
+        </label>
+      </nav>
+    </header>
+
+    <section class="workspace">
+      <div class="canvas-wrap">
+        <canvas id="clusterCanvas"></canvas>
+      </div>
+
+      <aside class="sidebar">
+        <section class="section">
+          <h2>Dati</h2>
+          <div class="controls">
+            <p class="status" id="pointCounter">Punti: 0</p>
+            <div class="control-grid">
+              <label class="range-label">
+                Noise %
+                <span class="range-value" id="noiseCountValue">15%</span>
+                <input type="range" id="noiseCount" min="0" max="100" value="15">
+              </label>
+              <label class="range-label">
+                Cluster
+                <span class="range-value" id="clusterCountValue">3</span>
+                <input type="range" id="clusterCount" min="1" max="8" value="3">
+              </label>
+              <label class="range-label">
+                Numero punti
+                <span class="range-value" id="clusterSizeValue">50</span>
+                <input type="range" id="clusterSize" min="1" max="200" value="50">
+              </label>
+              <label class="range-label">
+                Spread
+                <span class="range-value" id="clusterSpreadValue">45</span>
+                <input type="range" id="clusterSpread" min="10" max="120" value="45">
+              </label>
+            </div>
+            <div class="row">
+              <button type="button" id="addNoisePoints">Punti casuali</button>
+              <button type="button" id="addRandomClusters" class="primary">Cluster casuali</button>
+            </div>
+            <div class="row">
+              <button type="button" id="addTwoMoons">Two moons</button>
+              <button type="button" id="addCircles">Cerchi</button>
+              <button type="button" id="addSpiral">Spirale</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Azioni</h2>
+          <div class="controls">
+            <div class="row">
+              <button type="button" class="primary" id="playAlgorithm">Play</button>
+              <button type="button" id="stepAlgorithm">Step</button>
+            </div>
+            <div class="row">
+              <button type="button" id="clearResult">Pulisci risultato</button>
+              <button type="button" id="resetPoints" class="danger">Reset punti</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel" data-panel="kmeans">
+          <h2>K-Means</h2>
+          <div class="controls">
+            <label>
+              K
+              <input type="number" id="kValue" min="1" max="30" value="3">
+            </label>
+            <div class="row">
+              <button type="button" id="randomCentroids">Centroidi random</button>
+              <button type="button" id="kppCentroids">KMeans++</button>
+            </div>
+            <div class="row">
+              <button type="button" class="primary" id="runKmeans">Play</button>
+              <button type="button" id="stepKmeans">Step</button>
+              <button type="button" class="danger" id="resetKmeans">Reset centroidi</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="spectral">
+          <h2>Spectral semplificato</h2>
+          <div class="controls">
+            <label>
+              K
+              <input type="number" id="spectralK" min="1" max="12" value="3">
+            </label>
+            <label>
+              Sigma
+              <input type="number" id="spectralSigma" min="1" value="80">
+            </label>
+            <p class="hint">Costruisce W con RBF, D, Laplaciana normalizzata L = I - D^-1/2 W D^-1/2, poi usa eigenvectors e K-Means.</p>
+            <div class="row">
+              <button type="button" class="primary" id="runSpectral">Play</button>
+              <button type="button" id="stepSpectral">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="fuzzy">
+          <h2>Fuzzy C-Means</h2>
+          <div class="controls">
+            <label>
+              Cluster
+              <input type="number" id="fuzzyClusters" min="1" max="20" value="3">
+            </label>
+            <label>
+              Fuzziness
+              <input type="number" id="fuzzyM" min="1.1" step="0.1" value="2">
+            </label>
+            <label>
+              Iterazioni
+              <input type="number" id="fuzzyIterations" min="1" max="100" value="40">
+            </label>
+            <p class="hint">Ogni punto appartiene a tutti i cluster con pesi diversi. La trasparenza indica quanto e sicura l'appartenenza principale.</p>
+            <div class="row">
+              <button type="button" class="primary" id="runFuzzy">Play</button>
+              <button type="button" id="stepFuzzy">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="meanshift">
+          <h2>Mean Shift</h2>
+          <div class="controls">
+            <label>
+              Bandwidth
+              <input type="number" id="meanShiftBandwidth" min="1" value="70">
+            </label>
+            <label>
+              Iterazioni
+              <input type="number" id="meanShiftIterations" min="1" max="80" value="25">
+            </label>
+            <p class="hint">Sposta ogni punto verso la media locale dei vicini entro bandwidth e fonde i modi finali vicini.</p>
+            <div class="row">
+              <button type="button" class="primary" id="runMeanShift">Play</button>
+              <button type="button" id="stepMeanShift">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="gmm">
+          <h2>GMM</h2>
+          <div class="controls">
+            <label>
+              Componenti
+              <input type="number" id="gmmComponents" min="1" max="20" value="3">
+            </label>
+            <label>
+              Iterazioni
+              <input type="number" id="gmmIterations" min="1" max="100" value="35">
+            </label>
+            <p class="hint">GMM usa EM: stima peso, media e covarianza di ogni gaussiana e assegna ogni punto alla componente piu probabile.</p>
+            <div class="row">
+              <button type="button" class="primary" id="runGmm">Play</button>
+              <button type="button" id="stepGmm">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="dbscan">
+          <h2>DBSCAN</h2>
+          <div class="controls">
+            <label>
+              Epsilon
+              <input type="number" id="dbscanEpsilon" min="1" value="40">
+            </label>
+            <label>
+              MinPTS
+              <input type="number" id="dbscanMinPts" min="1" value="3">
+            </label>
+            <label class="inline-check">
+              <input type="checkbox" id="dbscanDrawEps">
+              Mostra range epsilon
+            </label>
+            <p class="hint">Il range epsilon viene disegnato con cerchi grigi: piu punti cadono nel raggio, piu il bordo diventa marcato.</p>
+            <div class="row">
+              <button type="button" class="primary" id="runDbscan">Play</button>
+              <button type="button" id="stepDbscan">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="hdbscan">
+          <h2>HDBSCAN</h2>
+          <div class="controls">
+            <label>
+              MinPTS
+              <input type="number" id="hdbscanMinPts" min="2" value="4">
+            </label>
+            <label>
+              Min cluster size
+              <input type="number" id="hdbscanMinClusterSize" min="2" value="8">
+            </label>
+            <p class="hint">Versione didattica: usa core distance, mutual reachability, MST e taglio gerarchico. I punti fuori dai cluster minimi diventano noise.</p>
+            <div class="row">
+              <button type="button" class="primary" id="runHdbscan">Play</button>
+              <button type="button" id="stepHdbscan">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel hidden" data-panel="hcluster">
+          <h2>HCluster</h2>
+          <div class="controls">
+            <label>
+              Linkage
+              <select id="hclusterCriterion">
+                <option value="single">Single link</option>
+                <option value="complete">Complete link</option>
+                <option value="average">Average link</option>
+                <option value="centroid">Centroid</option>
+                <option value="ward">Ward</option>
+              </select>
+            </label>
+            <label>
+              Metrica
+              <select id="hclusterMetric">
+                <option value="euclidean">Euclidea</option>
+                <option value="manhattan">Manhattan</option>
+                <option value="chebyshev">Chebyshev</option>
+                <option value="minkowski3">Minkowski p=3</option>
+                <option value="cosine">Coseno</option>
+              </select>
+            </label>
+            <div class="row">
+              <button type="button" class="primary" id="runHcluster">Play</button>
+              <button type="button" id="stepHcluster">Step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Stato</h2>
+          <p class="status" id="statusText">Pronto</p>
+          <div class="quality-legend" id="qualityLegend">
+            <span><i class="good-dot"></i> verde buono</span>
+            <span><i class="medium-dot"></i> giallo medio</span>
+            <span><i class="bad-dot"></i> rosso debole</span>
+          </div>
+          <div class="metrics" id="metricsPanel">
+            <p class="hint">Le metriche appariranno dopo Play o dopo l'ultimo Step.</p>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Visualizzazione</h2>
+          <div class="controls">
+            <label class="inline-check">
+              <input type="checkbox" id="showBoundaries">
+              Mostra boundaries
+            </label>
+            <label class="inline-check">
+              <input type="checkbox" id="showDetails" checked>
+              Mostra dettagli
+            </label>
+            <label class="inline-check">
+              <input type="checkbox" id="showTrails" checked>
+              Mostra scie
+            </label>
+            <label class="inline-check">
+              <input type="checkbox" id="showLegend" checked>
+              Mostra legenda
+            </label>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Legenda</h2>
+          <ul class="legend" id="legendText"></ul>
+        </section>
+
+      </aside>
+    </section>
+  </main>
+
+  <script src="algo.js"></script>
+</body>
+</html>
