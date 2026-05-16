@@ -25,6 +25,25 @@ L’obiettivo principale è educativo e visuale, non la performance scientifica 
 
 ---
 
+## Visualizzazioni
+
+### Spectral Clustering
+![Spectral](imgs/spectral.png)
+
+### DBSCAN
+![DBSCAN](imgs/dbscan.png)
+
+### Gaussian Mixture Models
+![GMM](imgs/gmm.png)
+
+### Hierarchical Clustering
+![HCluster](imgs/hcluster.png)
+
+### K-Means
+![KMeans](imgs/kmeanspng.png)
+
+---
+
 # Funzionalità
 
 ## Generazione dataset
