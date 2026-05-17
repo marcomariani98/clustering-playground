@@ -520,6 +520,24 @@
         height: 56vh;
       }
     }
+
+    #executeAlgorithm {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border-color: #6d28d9;
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(124, 58, 237, 0.28);
+    }
+
+  #executeAlgorithm:hover {
+    background: linear-gradient(135deg, #6d28d9, #1d4ed8);
+    border-color: #5b21b6;
+    transform: translateY(-1px);
+  }
+
+  #executeAlgorithm:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.22);
+  }
   </style>
 </head>
 <body>
@@ -562,9 +580,9 @@
 
       <aside class="sidebar">
         <section class="section">
-          <h2>Data</h2>
+          <h2>Data 📊</h2>
           <div class="controls">
-            <p class="status" id="pointCounter">Points: 0</p>
+            <p class="status" id="pointCounter">Points: 0 </p>
             <div class="control-grid">
               <label class="range-label">
                 Noise %
@@ -590,6 +608,7 @@
             <div class="row">
               <button type="button" id="addNoisePoints">Random points</button>
               <button type="button" id="addRandomClusters" class="primary">Random clusters</button>
+              <button type="button" id="resetPoints" class="danger">Reset points</button>
             </div>
             <div class="row">
               <button type="button" id="addTwoMoons">Two moons</button>
@@ -600,16 +619,20 @@
         </section>
 
         <section class="section">
-          <h2>Actions</h2>
+          <h2>Actions ⚙️</h2>
           <div class="controls">
             <div class="row">
-              <button type="button" class="primary" id="playAlgorithm">Play</button>
-              <button type="button" id="stepAlgorithm">Step</button>
+              <button type="button" class="primary" id="playAlgorithm">Play ▶️</button>
+              <button type="button" id="stepAlgorithm">Step ⏭️</button>
+              <button type="button" id="stopAlgorithm">Stop 🛑</button>
+              <button type="button" id="executeAlgorithm">Execute ⚡</button>
+              <button type="button" id="clearResult" class="danger">Clear result 🧽</button>
             </div>
-            <div class="row">
-              <button type="button" id="clearResult">Clear result</button>
-              <button type="button" id="resetPoints" class="danger">Reset points</button>
-            </div>
+            <label class="range-label">
+              Speed
+              <span class="range-value" id="autoplaySpeedValue">55%</span>
+              <input type="range" id="autoplaySpeed" min="1" max="100" value="55">
+            </label>
           </div>
         </section>
 
@@ -625,8 +648,8 @@
               <button type="button" id="kppCentroids">KMeans++</button>
             </div>
             <div class="row">
-              <button type="button" class="primary" id="runKmeans">Play</button>
-              <button type="button" id="stepKmeans">Step</button>
+              <button type="button" class="primary" id="runKmeans">Play ▶️</button>
+              <button type="button" id="stepKmeans">Step ⏭️</button>
               <button type="button" class="danger" id="resetKmeans">Reset centroids</button>
             </div>
           </div>
@@ -645,8 +668,8 @@
             </label>
             <p class="hint">Builds W with RBF, D, the normalized Laplacian L = I - D^-1/2 W D^-1/2, then uses eigenvectors and K-Means.</p>
             <div class="row">
-              <button type="button" class="primary" id="runSpectral">Play</button>
-              <button type="button" id="stepSpectral">Step</button>
+              <button type="button" class="primary" id="runSpectral">Play ▶️</button>
+              <button type="button" id="stepSpectral">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -668,8 +691,8 @@
             </label>
             <p class="hint">Each point belongs to every cluster with different weights. Transparency shows how strong the main membership is.</p>
             <div class="row">
-              <button type="button" class="primary" id="runFuzzy">Play</button>
-              <button type="button" id="stepFuzzy">Step</button>
+              <button type="button" class="primary" id="runFuzzy">Play ▶️</button>
+              <button type="button" id="stepFuzzy">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -691,8 +714,8 @@
             </label>
             <p class="hint">Moves each point toward the local mean of neighbors within the bandwidth and merges nearby final modes.</p>
             <div class="row">
-              <button type="button" class="primary" id="runMeanShift">Play</button>
-              <button type="button" id="stepMeanShift">Step</button>
+              <button type="button" class="primary" id="runMeanShift">Play ▶️</button>
+              <button type="button" id="stepMeanShift">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -710,8 +733,8 @@
             </label>
             <p class="hint">GMM uses EM: it estimates weight, mean, and covariance for each Gaussian and assigns each point to the most likely component.</p>
             <div class="row">
-              <button type="button" class="primary" id="runGmm">Play</button>
-              <button type="button" id="stepGmm">Step</button>
+              <button type="button" class="primary" id="runGmm">Play ▶️</button>
+              <button type="button" id="stepGmm">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -733,8 +756,8 @@
             </label>
             <p class="hint">The epsilon range is drawn with gray circles: the more points fall inside the radius, the stronger the outline becomes.</p>
             <div class="row">
-              <button type="button" class="primary" id="runDbscan">Play</button>
-              <button type="button" id="stepDbscan">Step</button>
+              <button type="button" class="primary" id="runDbscan">Play ▶️</button>
+              <button type="button" id="stepDbscan">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -752,8 +775,8 @@
             </label>
             <p class="hint">Educational version: it uses core distance, mutual reachability, MST, and a hierarchical cut. Points outside minimum clusters become noise.</p>
             <div class="row">
-              <button type="button" class="primary" id="runHdbscan">Play</button>
-              <button type="button" id="stepHdbscan">Step</button>
+              <button type="button" class="primary" id="runHdbscan">Play ▶️</button>
+              <button type="button" id="stepHdbscan">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -782,8 +805,8 @@
               </select>
             </label>
             <div class="row">
-              <button type="button" class="primary" id="runHcluster">Play</button>
-              <button type="button" id="stepHcluster">Step</button>
+              <button type="button" class="primary" id="runHcluster">Play ▶️</button>
+              <button type="button" id="stepHcluster">Step ⏭️</button>
             </div>
           </div>
         </section>
@@ -805,7 +828,7 @@
           <h2>Visualization</h2>
           <div class="controls">
             <label class="inline-check">
-              <input type="checkbox" id="showBoundaries">
+              <input type="checkbox" id="showBoundaries" checked>
               Show boundaries
             </label>
             <label class="inline-check">

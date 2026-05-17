@@ -326,7 +326,7 @@ class CanvasHandler{
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    drawKMeans(data,centroids,result,showBoundaries){
+    drawKMeans(data,centroids,result,showBoundaries,showDetails){
         this.reset();
 
         if(!result){
@@ -339,12 +339,19 @@ class CanvasHandler{
             this.drawKMeansBoundaries(result.centroids);
         }
 
+        if(showDetails){
+            this.drawKMeansAssignmentLines(result);
+            this.drawKMeansCentroidTrails(centroids,result);
+        }
+
         for(let [i,cluster] of result.clusters.entries()){
             this.drawPoints(cluster.points,cluster_color[i % cluster_color.length]);
         }
 
         this.drawCentroids(centroids,"#6F1615");
         this.drawCentroids(result.centroids,"#2d7a22");
+        let detailText = showDetails ? " - centroid paths visible" : "";
+        this.drawInfo(`K-Means - iterations: ${result.iterations || 1}${detailText}`);
     }
 
     drawKMeansBoundaries(centroids){
@@ -371,7 +378,104 @@ class CanvasHandler{
         }
     }
 
-    drawSpectral(data,result,showBoundaries){
+    drawKMeansAssignmentLines(result){
+        if(!result || !result.clusters || !result.centroids){
+            return;
+        }
+
+        this.ctx.save();
+        this.ctx.lineWidth = 0.8;
+
+        for(let [i,cluster] of result.clusters.entries()){
+            let centroid = result.centroids[i] || cluster.centroid;
+
+            if(!centroid){
+                continue;
+            }
+
+            this.ctx.strokeStyle = this.colorAlpha(cluster_color[i % cluster_color.length],0.16);
+
+            for(let point of cluster.points){
+                this.ctx.beginPath();
+                this.ctx.moveTo(point.x,point.y);
+                this.ctx.lineTo(centroid.x,centroid.y);
+                this.ctx.stroke();
+            }
+        }
+
+        this.ctx.restore();
+    }
+
+    drawKMeansCentroidTrails(initialCentroids,result){
+        if(!result){
+            return;
+        }
+
+        let paths = [];
+
+        if(result.centroidHistory){
+            paths = result.centroidHistory.map((path) => path.map((point) => ({x:point.x,y:point.y})));
+        }else if(result.steps && result.steps.length > 0){
+            paths = initialCentroids.map((centroid) => [{x:centroid.x,y:centroid.y}]);
+
+            for(let step of result.steps){
+                for(let [i,centroid] of step.centroids.entries()){
+                    if(!paths[i]){
+                        paths[i] = [];
+                    }
+
+                    paths[i].push({x:centroid.x,y:centroid.y});
+                }
+            }
+        }
+
+        if(paths.length === 0){
+            return;
+        }
+
+        for(let [i,centroid] of initialCentroids.entries()){
+            if(!paths[i]){
+                paths[i] = [{x:centroid.x,y:centroid.y}];
+            }
+        }
+
+        this.ctx.save();
+        this.ctx.setLineDash([5,5]);
+        this.ctx.lineWidth = 1.5;
+
+        for(let [i,path] of paths.entries()){
+            if(path.length < 2){
+                continue;
+            }
+
+            let color = cluster_color[i % cluster_color.length];
+            this.ctx.strokeStyle = this.colorAlpha(color,0.60);
+            this.ctx.beginPath();
+            this.ctx.moveTo(path[0].x,path[0].y);
+
+            for(let j = 1;j < path.length;j++){
+                this.ctx.lineTo(path[j].x,path[j].y);
+            }
+
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+
+            for(let j = 1;j < path.length - 1;j++){
+                this.ctx.beginPath();
+                this.ctx.arc(path[j].x,path[j].y,3,0,2 * Math.PI,false);
+                this.ctx.fillStyle = this.colorAlpha(color,0.50);
+                this.ctx.fill();
+            }
+
+            let last = path[path.length - 1];
+            this.drawLabel({x:last.x + 8,y:last.y + 6},`C${i + 1}`,color,"700 12px Arial");
+            this.ctx.setLineDash([5,5]);
+        }
+
+        this.ctx.restore();
+    }
+
+    drawSpectral(data,result,showBoundaries,showDetails){
         this.reset();
 
         if(!result){
@@ -379,10 +483,55 @@ class CanvasHandler{
             return;
         }
 
+        let view = result.view || "clusters";
+        let canDrawAffinity = result.affinity && data.length <= 120;
+
+        if(view === "affinity"){
+            if(canDrawAffinity){
+                this.drawSpectralAffinityGraph(data,result.affinity,1);
+            }
+
+            this.drawPoints(data,"#111827");
+            this.drawInfo(`Spectral - ${result.phaseLabel || "affinity graph"}`);
+            return;
+        }
+
+        if(view === "laplacian"){
+            if(canDrawAffinity){
+                this.drawSpectralAffinityGraph(data,result.affinity,0.45);
+            }
+
+            this.drawSpectralDegreeHalos(data,result.degree);
+            this.drawPoints(data,"#111827");
+            this.drawInfo(`Spectral - ${result.phaseLabel || "normalized Laplacian"}`);
+            return;
+        }
+
+        if(view === "embedding"){
+            this.drawPoints(data,"#111827");
+            this.drawSpectralEmbedding(result,true);
+            this.drawInfo(`Spectral - ${result.phaseLabel || "spectral embedding"}`);
+            return;
+        }
+
+        if(showDetails && canDrawAffinity){
+            this.drawSpectralAffinityGraph(data,result.affinity,0.35);
+        }
+
         if(showBoundaries){
             this.drawNearestPointBoundaries(result.clusters);
         }
 
+        this.drawSpectralClusters(result);
+
+        if(showDetails && result.embedding){
+            this.drawSpectralEmbedding(result,false);
+        }
+
+        this.drawInfo(`Spectral - ${result.phaseLabel || "final clusters"}`);
+    }
+
+    drawSpectralClusters(result){
         for(let [i,cluster] of result.clusters.entries()){
             let color = cluster_color[i % cluster_color.length];
             this.drawPoints(cluster,color);
@@ -392,11 +541,149 @@ class CanvasHandler{
                 this.drawLabel(centroid,`S${i + 1}`,"#111827","700 12px Arial");
             }
         }
-
-        this.drawInfo(`Spectral - ${result.phaseLabel || "final clusters"}`);
     }
 
-    drawFuzzy(data,result,showBoundaries){
+    drawSpectralAffinityGraph(data,affinity,intensity = 1){
+        if(!data || !affinity || data.length === 0){
+            return;
+        }
+
+        this.ctx.save();
+
+        for(let i = 0;i < data.length;i++){
+            let edges = [];
+
+            for(let j = 0;j < data.length;j++){
+                if(i === j){
+                    continue;
+                }
+
+                edges.push({
+                    index:j,
+                    weight:affinity[i][j] || 0
+                });
+            }
+
+            edges.sort((a,b) => b.weight - a.weight);
+
+            for(let edge of edges.slice(0,4)){
+                if(edge.weight < 0.08 || i > edge.index){
+                    continue;
+                }
+
+                let alpha = (0.05 + Math.min(0.30,edge.weight * 0.34)) * intensity;
+                let lineWidth = 0.6 + edge.weight * 1.4;
+                let target = data[edge.index];
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(data[i].x,data[i].y);
+                this.ctx.lineTo(target.x,target.y);
+                this.ctx.strokeStyle = `rgba(23, 105, 224, ${alpha})`;
+                this.ctx.lineWidth = lineWidth;
+                this.ctx.stroke();
+            }
+        }
+
+        this.ctx.restore();
+    }
+
+    drawSpectralDegreeHalos(data,degree){
+        if(!data || !degree || degree.length === 0){
+            return;
+        }
+
+        let maxDegree = Math.max(0.0001,...degree);
+
+        this.ctx.save();
+
+        for(let [i,point] of data.entries()){
+            let ratio = (degree[i] || 0) / maxDegree;
+            let radius = 8 + ratio * 18;
+
+            this.ctx.beginPath();
+            this.ctx.arc(point.x,point.y,radius,0,2 * Math.PI,false);
+            this.ctx.fillStyle = `rgba(23, 105, 224, ${0.05 + ratio * 0.13})`;
+            this.ctx.fill();
+            this.ctx.strokeStyle = `rgba(23, 105, 224, ${0.18 + ratio * 0.26})`;
+            this.ctx.lineWidth = 1 + ratio * 1.4;
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
+    }
+
+    drawSpectralEmbedding(result,isFocus = false){
+        if(!result.embedding || result.embedding.length === 0){
+            return;
+        }
+
+        let panel = {
+            width:isFocus ? Math.min(420,Math.max(300,this.width * 0.38)) : Math.min(260,Math.max(190,this.width * 0.24)),
+            height:isFocus ? Math.min(330,Math.max(240,this.height * 0.38)) : Math.min(210,Math.max(160,this.height * 0.24))
+        };
+
+        panel.x = this.width - panel.width - 18;
+        panel.y = 44;
+
+        let points = result.embedding.map((row) => ({
+            x:row[0] || 0,
+            y:row.length > 1 ? row[1] : 0
+        }));
+        let minX = Math.min(...points.map((point) => point.x));
+        let maxX = Math.max(...points.map((point) => point.x));
+        let minY = Math.min(...points.map((point) => point.y));
+        let maxY = Math.max(...points.map((point) => point.y));
+        let pad = 20;
+        let spanX = Math.max(0.0001,maxX - minX);
+        let spanY = Math.max(0.0001,maxY - minY);
+        let pointCluster = new Map();
+
+        if(result.clusters){
+            for(let [i,cluster] of result.clusters.entries()){
+                for(let point of cluster){
+                    if(point.i !== undefined){
+                        pointCluster.set(point.i,i);
+                    }
+                }
+            }
+        }
+
+        this.ctx.save();
+        this.ctx.fillStyle = "rgba(255,255,255,0.94)";
+        this.ctx.strokeStyle = "rgba(148,163,184,0.75)";
+        this.ctx.lineWidth = 1;
+        this.roundRect(panel.x,panel.y,panel.width,panel.height,8);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = "#172033";
+        this.ctx.font = "800 12px Arial";
+        this.ctx.fillText("Spectral embedding",panel.x + 12,panel.y + 20);
+
+        this.ctx.strokeStyle = "rgba(148,163,184,0.35)";
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(panel.x + pad,panel.y + panel.height / 2);
+        this.ctx.lineTo(panel.x + panel.width - pad,panel.y + panel.height / 2);
+        this.ctx.moveTo(panel.x + panel.width / 2,panel.y + pad + 10);
+        this.ctx.lineTo(panel.x + panel.width / 2,panel.y + panel.height - pad);
+        this.ctx.stroke();
+
+        for(let [i,point] of points.entries()){
+            let x = panel.x + pad + ((point.x - minX) / spanX) * (panel.width - pad * 2);
+            let y = panel.y + panel.height - pad - ((point.y - minY) / spanY) * (panel.height - pad * 2 - 12);
+            let clusterIndex = pointCluster.has(i) ? pointCluster.get(i) : i % cluster_color.length;
+
+            this.ctx.beginPath();
+            this.ctx.arc(x,y,3,0,2 * Math.PI,false);
+            this.ctx.fillStyle = cluster_color[clusterIndex % cluster_color.length];
+            this.ctx.fill();
+        }
+
+        this.ctx.restore();
+    }
+
+    drawFuzzy(data,result,showBoundaries,showDetails){
         this.reset();
 
         if(!result){
@@ -408,6 +695,11 @@ class CanvasHandler{
             this.drawKMeansBoundaries(result.centroids);
         }
 
+        if(showDetails){
+            this.drawFuzzyMembershipLinks(data,result);
+            this.drawFuzzyCentroidTrails(result);
+        }
+
         for(let [i,cluster] of result.clusters.entries()){
             let color = cluster_color[i % cluster_color.length];
 
@@ -416,12 +708,107 @@ class CanvasHandler{
                 let confidence = idx >= 0 ? result.confidence[idx] : 1;
                 let alpha = 0.22 + confidence * 0.78;
 
+                this.drawFuzzyAmbiguity(point,confidence);
                 this.drawPointAlpha(point,color,alpha);
             }
         }
 
         this.drawCentroids(result.centroids,"#111827");
-        this.drawInfo(`Fuzzy C-Means - iterations: ${result.iterations} - alpha = membership`);
+        let detailText = showDetails ? " - soft memberships visible" : "";
+        this.drawInfo(`Fuzzy C-Means - iterations: ${result.iterations} - alpha = membership${detailText}`);
+    }
+
+    drawFuzzyAmbiguity(point,confidence){
+        let ambiguity = 1 - confidence;
+
+        if(ambiguity < 0.30){
+            return;
+        }
+
+        let radius = 6 + ambiguity * 13;
+
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(point.x,point.y,radius,0,2 * Math.PI,false);
+        this.ctx.fillStyle = `rgba(124, 58, 237, ${0.05 + ambiguity * 0.12})`;
+        this.ctx.fill();
+        this.ctx.strokeStyle = `rgba(124, 58, 237, ${0.16 + ambiguity * 0.22})`;
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+
+    drawFuzzyMembershipLinks(data,result){
+        if(!result.memberships || !result.centroids){
+            return;
+        }
+
+        this.ctx.save();
+
+        for(let i = 0;i < data.length;i++){
+            let memberships = result.memberships[i]
+                .map((value,index) => ({value:value,index:index}))
+                .sort((a,b) => b.value - a.value)
+                .slice(0,2);
+
+            for(let item of memberships){
+                if(item.value < 0.12 || !result.centroids[item.index]){
+                    continue;
+                }
+
+                let centroid = result.centroids[item.index];
+                let color = cluster_color[item.index % cluster_color.length];
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(data[i].x,data[i].y);
+                this.ctx.lineTo(centroid.x,centroid.y);
+                this.ctx.strokeStyle = this.colorAlpha(color,0.05 + item.value * 0.26);
+                this.ctx.lineWidth = 0.6 + item.value * 1.6;
+                this.ctx.stroke();
+            }
+        }
+
+        this.ctx.restore();
+    }
+
+    drawFuzzyCentroidTrails(result){
+        if(!result.centroidHistory || result.centroidHistory.length === 0){
+            return;
+        }
+
+        this.ctx.save();
+        this.ctx.setLineDash([4,5]);
+        this.ctx.lineWidth = 1.4;
+
+        for(let [i,path] of result.centroidHistory.entries()){
+            if(!path || path.length < 2){
+                continue;
+            }
+
+            let color = cluster_color[i % cluster_color.length];
+
+            this.ctx.strokeStyle = this.colorAlpha(color,0.56);
+            this.ctx.beginPath();
+            this.ctx.moveTo(path[0].x,path[0].y);
+
+            for(let j = 1;j < path.length;j++){
+                this.ctx.lineTo(path[j].x,path[j].y);
+            }
+
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+
+            for(let j = 1;j < path.length - 1;j++){
+                this.ctx.beginPath();
+                this.ctx.arc(path[j].x,path[j].y,2.6,0,2 * Math.PI,false);
+                this.ctx.fillStyle = this.colorAlpha(color,0.45);
+                this.ctx.fill();
+            }
+
+            this.ctx.setLineDash([4,5]);
+        }
+
+        this.ctx.restore();
     }
 
     drawMeanShift(data,result,showDensity,showTrails,showDetails){
@@ -753,7 +1140,7 @@ class CanvasHandler{
         this.ctx.restore();
     }
 
-    drawDBSCAN(data,result,showEpsilon,showBoundaries){
+    drawDBSCAN(data,result,showEpsilon,showBoundaries,showDetails){
         this.reset();
 
         if(!result){
@@ -765,6 +1152,8 @@ class CanvasHandler{
             this.drawDBSCANBoundaries(result);
         }
 
+        this.drawDBSCANBasePoints(data,result);
+
         if(showEpsilon){
             this.drawDBSCANRanges(data,result);
         }
@@ -775,6 +1164,21 @@ class CanvasHandler{
 
         this.drawCentroids(result.noise,"#000000");
         this.drawPoints(result.border,"#A020F0");
+        this.drawDBSCANCurrentQuery(result);
+        this.drawDBSCANPointRoles(result,showDetails);
+        this.drawInfo(result.phaseLabel || `DBSCAN - clusters: ${result.clusters.length} - noise: ${result.noise.length}`);
+    }
+
+    drawDBSCANBasePoints(data,result){
+        let visited = new Set(result.visitedIndexes || []);
+
+        for(let [i,point] of data.entries()){
+            if(visited.has(i)){
+                this.drawPointAlpha(point,"#111827",0.22);
+            }else{
+                this.drawPointAlpha(point,"#111827",0.46);
+            }
+        }
     }
 
     drawDBSCANRanges(data,result){
@@ -787,6 +1191,74 @@ class CanvasHandler{
 
             this.drawRadius(point.x,point.y,result.eps,`rgba(73, 82, 96, ${alpha})`,lineWidth);
         }
+    }
+
+    drawDBSCANCurrentQuery(result){
+        if(!result || !result.currentPoint){
+            return;
+        }
+
+        let current = result.currentPoint;
+        let neighbors = result.currentNeighbors || [];
+
+        this.ctx.save();
+
+        this.drawRadius(current.x,current.y,result.eps,"rgba(23, 105, 224, 0.50)",2.2);
+
+        for(let neighbor of neighbors){
+            this.ctx.beginPath();
+            this.ctx.moveTo(current.x,current.y);
+            this.ctx.lineTo(neighbor.x,neighbor.y);
+            this.ctx.strokeStyle = "rgba(23, 105, 224, 0.22)";
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+
+            this.ctx.beginPath();
+            this.ctx.arc(neighbor.x,neighbor.y,6,0,2 * Math.PI,false);
+            this.ctx.strokeStyle = "rgba(23, 105, 224, 0.36)";
+            this.ctx.lineWidth = 1.2;
+            this.ctx.stroke();
+        }
+
+        this.ctx.beginPath();
+        this.ctx.arc(current.x,current.y,7,0,2 * Math.PI,false);
+        this.ctx.fillStyle = "rgba(23, 105, 224, 0.90)";
+        this.ctx.fill();
+        this.ctx.strokeStyle = "#ffffff";
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+
+        this.drawLabel({x:current.x + 8,y:current.y - 8},"eps","#1769e0","700 12px Arial");
+
+        this.ctx.restore();
+    }
+
+    drawDBSCANPointRoles(result,showDetails){
+        if(!showDetails){
+            return;
+        }
+
+        let totalMarked = result.border ? result.border.length : 0;
+        let drawLetters = totalMarked <= 120;
+
+        this.ctx.save();
+        this.ctx.font = "700 10px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+
+        for(let point of result.border || []){
+            this.ctx.fillStyle = "#ffffff";
+            this.ctx.beginPath();
+            this.ctx.arc(point.x,point.y,3.2,0,2 * Math.PI,false);
+            this.ctx.fill();
+            this.ctx.fillStyle = "#7e22ce";
+
+            if(drawLetters){
+                this.ctx.fillText("B",point.x,point.y + 0.2);
+            }
+        }
+
+        this.ctx.restore();
     }
 
     drawDBSCANBoundaries(result){
@@ -1280,10 +1752,19 @@ class kMeans{
         let steps = [];
         let hasConvergence = false;
         let iteration = 0;
+        let centroidHistory = centroids.map((centroid) => [{x:centroid.x,y:centroid.y}]);
 
         while(iteration < maxIterations && !hasConvergence){
             clusters = this.assignCluster(data,centroids);
             let newCentroids = this.updateCentroids(clusters);
+
+            for(let [i,centroid] of newCentroids.entries()){
+                if(!centroidHistory[i]){
+                    centroidHistory[i] = [];
+                }
+
+                centroidHistory[i].push({x:centroid.x,y:centroid.y});
+            }
 
             steps.push({
                 clusters: clusters.map((cluster) => ({
@@ -1291,6 +1772,7 @@ class kMeans{
                     points:cluster.points.map((point) => ({...point}))
                 })),
                 centroids: newCentroids.map((point) => ({...point})),
+                centroidHistory: centroidHistory.map((path) => path.map((point) => ({...point}))),
                 iterations: iteration + 1
             });
 
@@ -1306,6 +1788,7 @@ class kMeans{
             clusters:clusters,
             centroids:centroids,
             steps:steps,
+            centroidHistory:centroidHistory,
             iterations:iteration
         };
     }
@@ -1376,6 +1859,7 @@ class SpectralClustering{
     run(data,k,sigma){
         /* Pipeline: affinity -> normalized Laplacian -> embedding -> K-Means. */
         let affinity = this.calculateAffinity(data,sigma);
+        let degree = this.calculateDegree(affinity);
         let laplacian = this.calculateNormalizedLaplacian(affinity);
         let normalizedAffinity = this.calculateNormalizedAffinity(affinity);
         let eigenvectors = this.powerEigenvectors(normalizedAffinity,k);
@@ -1386,18 +1870,34 @@ class SpectralClustering{
         this.steps = [
             {
                 clusters:[data],
+                affinity:affinity,
+                degree:degree,
+                embedding:embedding,
+                view:"affinity",
                 phaseLabel:"1. RBF similarity calculated"
             },
             {
                 clusters:[data],
+                affinity:affinity,
+                degree:degree,
+                embedding:embedding,
+                view:"laplacian",
                 phaseLabel:"2. Normalized Laplacian L calculated"
             },
             {
                 clusters:[data],
+                affinity:affinity,
+                degree:degree,
+                embedding:embedding,
+                view:"embedding",
                 phaseLabel:"3. Laplacian eigenvectors extracted"
             },
             {
                 clusters:clusters,
+                affinity:affinity,
+                degree:degree,
+                embedding:embedding,
+                view:"clusters",
                 phaseLabel:"4. K-Means in spectral space"
             }
         ];
@@ -1406,8 +1906,10 @@ class SpectralClustering{
             clusters:clusters,
             embedding:embedding,
             affinity:affinity,
+            degree:degree,
             laplacian:laplacian,
             steps:this.steps,
+            view:"clusters",
             phaseLabel:"final clusters"
         };
     }
@@ -1659,20 +2161,30 @@ class FuzzyCMeans{
         /* m controls how soft the memberships are. */
         let memberships = this.initMembership(data.length,k);
         let centroids = [];
+        let centroidHistory = [];
         let steps = [];
         let iterations = 0;
 
         for(let iter = 0;iter < maxIterations;iter++){
             centroids = this.updateCentroids(data,memberships,k,m);
+
+            for(let [i,centroid] of centroids.entries()){
+                if(!centroidHistory[i]){
+                    centroidHistory[i] = [];
+                }
+
+                centroidHistory[i].push({x:centroid.x,y:centroid.y});
+            }
+
             memberships = this.updateMemberships(data,centroids,m);
             iterations = iter + 1;
 
-            steps.push(this.buildResult(data,memberships,centroids,iterations));
+            steps.push(this.buildResult(data,memberships,centroids,iterations,centroidHistory));
         }
 
         this.steps = steps;
 
-        let result = this.buildResult(data,memberships,centroids,iterations);
+        let result = this.buildResult(data,memberships,centroids,iterations,centroidHistory);
         result.steps = steps;
         return result;
     }
@@ -1746,7 +2258,7 @@ class FuzzyCMeans{
         return memberships;
     }
 
-    buildResult(data,memberships,centroids,iterations){
+    buildResult(data,memberships,centroids,iterations,centroidHistory = []){
         let clusters = centroids.map(() => []);
         let confidence = [];
 
@@ -1770,6 +2282,7 @@ class FuzzyCMeans{
             memberships:memberships.map((row) => row.slice()),
             confidence:confidence,
             centroids:centroids.map((point) => ({...point})),
+            centroidHistory:centroidHistory.map((path) => path.map((point) => ({...point}))),
             iterations:iterations
         };
     }
@@ -2250,18 +2763,37 @@ class DBSCAN{
 
             let neighbours = this.regionQuery(dataset,point);
 
+            steps.push(this.snapshot(core,clusters,noise,border,neighborCounts,{
+                currentPoint:point,
+                currentNeighbors:neighbours,
+                visited:visited,
+                phaseLabel:`DBSCAN - visit P${point.i + 1}: ${neighbours.length} points inside epsilon`
+            }));
+
             if(neighbours.length < this.minPts){
                 point.label = "noise";
 
                 if(!isInArray(noise,point)){
                     noise.push(point);
                 }
-            }else{
-                let newCluster = this.expandCluster(dataset,point,neighbours,visited,border,core,clusters);
-                clusters.push(newCluster);
-            }
 
-            steps.push(this.snapshot(core,clusters,noise,border,neighborCounts));
+                steps.push(this.snapshot(core,clusters,noise,border,neighborCounts,{
+                    currentPoint:point,
+                    currentNeighbors:neighbours,
+                    visited:visited,
+                    phaseLabel:`DBSCAN - P${point.i + 1} marked as noise`
+                }));
+            }else{
+                let newCluster = this.expandCluster(dataset,point,neighbours,visited,border,core,noise,clusters,steps,neighborCounts);
+                clusters.push(newCluster);
+
+                steps.push(this.snapshot(core,clusters,noise,border,neighborCounts,{
+                    currentPoint:point,
+                    currentNeighbors:neighbours,
+                    visited:visited,
+                    phaseLabel:`DBSCAN - cluster ${clusters.length} expanded`
+                }));
+            }
         }
 
         let finalNoise = noise.filter((point) => !isInCluster(clusters,point));
@@ -2275,11 +2807,12 @@ class DBSCAN{
             border:border,
             eps:this.eps,
             neighborCounts:neighborCounts,
+            visitedIndexes:dataset.map((point) => point.i),
             steps:steps
         };
     }
 
-    expandCluster(dataset,point,neighbours,visited,border,core,clusters){
+    expandCluster(dataset,point,neighbours,visited,border,core,noise,clusters,steps,neighborCounts){
         let cluster = [];
         let queue = neighbours.slice();
 
@@ -2290,14 +2823,21 @@ class DBSCAN{
             core.push(point);
         }
 
+        steps.push(this.snapshot(core,clusters,noise,border,neighborCounts,{
+            activeCluster:cluster,
+            currentPoint:point,
+            currentNeighbors:neighbours,
+            visited:visited,
+            phaseLabel:`DBSCAN - P${point.i + 1} is core, expanding cluster`
+        }));
+
         for(let i = 0;i < queue.length;i++){
             let neighbour = queue[i];
             let neighbourIndex = dataset.indexOf(neighbour);
+            let neighbourPoints = this.regionQuery(dataset,neighbour);
 
             if(!visited.has(neighbourIndex)){
                 visited.add(neighbourIndex);
-
-                let neighbourPoints = this.regionQuery(dataset,neighbour);
 
                 if(neighbourPoints.length >= this.minPts){
                     neighbour.label = "core";
@@ -2318,6 +2858,14 @@ class DBSCAN{
                         border.push(neighbour);
                     }
                 }
+
+                steps.push(this.snapshot(core,clusters,noise,border,neighborCounts,{
+                    activeCluster:cluster,
+                    currentPoint:neighbour,
+                    currentNeighbors:neighbourPoints,
+                    visited:visited,
+                    phaseLabel:`DBSCAN - expand from P${neighbour.i + 1}: ${neighbourPoints.length} epsilon neighbors`
+                }));
             }
 
             if(neighbour.label === "noise"){
@@ -2348,16 +2896,25 @@ class DBSCAN{
         return neighbours;
     }
 
-    snapshot(core,clusters,noise,border,neighborCounts){
+    snapshot(core,clusters,noise,border,neighborCounts,options = {}){
         let visibleNoise = noise.filter((point) => !isInCluster(clusters,point));
+        let visibleClusters = clusters.map((cluster) => cluster.slice());
+
+        if(options.activeCluster && options.activeCluster.length > 0){
+            visibleClusters = visibleClusters.concat([options.activeCluster.slice()]);
+        }
 
         return {
             core: core.slice(),
-            clusters: clusters.map((cluster) => cluster.slice()),
+            clusters: visibleClusters,
             noise: visibleNoise,
             border: border.slice(),
             eps: this.eps,
-            neighborCounts: neighborCounts.slice()
+            neighborCounts: neighborCounts.slice(),
+            currentPoint: options.currentPoint ? {...options.currentPoint} : null,
+            currentNeighbors: options.currentNeighbors ? options.currentNeighbors.map((point) => ({...point})) : [],
+            visitedIndexes: options.visited ? Array.from(options.visited) : [],
+            phaseLabel: options.phaseLabel || ""
         };
     }
 }
@@ -2916,6 +3473,8 @@ class AppController{
         this.currentSteps = [];
         this.stepIndex = 0;
         this.metricsReady = false;
+        this.autoTimer = null;
+        this.autoDelay = 0;
 
         this.kmeans = new kMeans(this.canvasHandler);
         this.spectral = new SpectralClustering(this.canvasHandler);
@@ -2973,6 +3532,7 @@ class AppController{
         this.bindRange("clusterCount","clusterCountValue");
         this.bindRange("clusterSize","clusterSizeValue");
         this.bindRange("clusterSpread","clusterSpreadValue");
+        this.bindRange("autoplaySpeed","autoplaySpeedValue");
 
         DOM("addNoisePoints").addEventListener("click",() => {
             let count = parseInt(DOMgetValue("clusterSize"));
@@ -3061,8 +3621,16 @@ class AppController{
         DOM("meanShiftDensityMap").addEventListener("change",() => this.render());
         DOM("dbscanDrawEps").addEventListener("change",() => this.render());
 
-        DOM("playAlgorithm").addEventListener("click",() => this.runCurrent(false));
-        DOM("stepAlgorithm").addEventListener("click",() => this.runCurrent(true));
+        DOM("playAlgorithm").addEventListener("click",() => this.startAutoplay());
+        DOM("stepAlgorithm").addEventListener("click",() => {
+            this.stopAutoplay();
+            this.runCurrent(true);
+        });
+        DOM("stopAlgorithm").addEventListener("click",() => this.stopAutoplay());
+        DOM("executeAlgorithm").addEventListener("click",() => {
+            this.stopAutoplay();
+            this.runCurrent(false);
+        });
 
         DOM("randomCentroids").addEventListener("click",() => {
             let k = this.readPositiveInt("kValue","Invalid K");
@@ -3125,6 +3693,10 @@ class AppController{
     bindRange(inputId,labelId){
         DOM(inputId).addEventListener("input",() => {
             this.updateRangeLabel(inputId,labelId);
+
+            if(inputId === "autoplaySpeed" && this.autoTimer){
+                this.restartAutoplay();
+            }
         });
     }
 
@@ -3133,6 +3705,7 @@ class AppController{
         this.updateRangeLabel("clusterCount","clusterCountValue");
         this.updateRangeLabel("clusterSize","clusterSizeValue");
         this.updateRangeLabel("clusterSpread","clusterSpreadValue");
+        this.updateRangeLabel("autoplaySpeed","autoplaySpeedValue");
     }
 
     updateRangeLabel(inputId,labelId){
@@ -3142,10 +3715,15 @@ class AppController{
             value = `${value}%`;
         }
 
+        if(inputId === "autoplaySpeed"){
+            value = `${value}%`;
+        }
+
         DOMsetValue(labelId,value);
     }
 
     changeMode(mode){
+        this.stopAutoplay();
         this.mode = mode;
         this.clearResult();
         DOM("algorithmSelect").value = mode;
@@ -3162,6 +3740,75 @@ class AppController{
         this.updateLegend();
         this.updatePseudocode();
         this.render();
+    }
+
+    getAutoDelay(){
+        let speed = parseInt(DOMgetValue("autoplaySpeed")) || 55;
+        let ratio = clamp(speed,1,100) / 100;
+
+        return Math.round(1050 - ratio * 930);
+    }
+
+    startAutoplay(){
+        if(this.autoTimer){
+            return;
+        }
+
+        if(!this.currentSteps || this.currentSteps.length === 0 || this.stepIndex >= this.currentSteps.length){
+            this.runCurrent(true);
+        }
+
+        if(!this.currentSteps || this.currentSteps.length === 0){
+            return;
+        }
+
+        if(this.stepIndex >= this.currentSteps.length){
+            this.stepIndex = 0;
+            this.currentResult = null;
+            this.metricsReady = false;
+        }
+
+        this.autoDelay = this.getAutoDelay();
+        DOM("playAlgorithm").classList.add("active");
+
+        this.autoTimer = setInterval(() => {
+            if(this.stepIndex >= this.currentSteps.length){
+                this.stopAutoplay(false);
+                this.setStatus(`Auto completed ${this.currentSteps.length} steps`);
+                return;
+            }
+
+            this.showNextStep();
+        },this.autoDelay);
+
+        this.setStatus(`Playing steps: ${this.autoDelay}ms per step`);
+    }
+
+    restartAutoplay(){
+        if(!this.autoTimer){
+            return;
+        }
+
+        clearInterval(this.autoTimer);
+        this.autoTimer = null;
+        this.startAutoplay();
+    }
+
+    stopAutoplay(updateStatus = true){
+        if(this.autoTimer){
+            clearInterval(this.autoTimer);
+            this.autoTimer = null;
+        }
+
+        let button = DOM("playAlgorithm");
+
+        if(button){
+            button.classList.remove("active");
+        }
+
+        if(updateStatus && this.currentSteps && this.currentSteps.length > 0 && this.stepIndex < this.currentSteps.length){
+            this.setStatus(`Auto stopped at step ${this.stepIndex}/${this.currentSteps.length}`);
+        }
     }
 
     runCurrent(isStep){
@@ -3210,6 +3857,8 @@ class AppController{
             return [
                 "Red cross = initial centroids",
                 "Green cross = final centroids",
+                "Dashed lines = centroid movement",
+                "Thin lines = point assignment",
                 "Background = nearest-centroid region"
             ];
         }
@@ -3225,6 +3874,8 @@ class AppController{
         if(this.mode === "dbscan"){
             return [
                 "Color = cluster",
+                "Blue radius = current epsilon query",
+                "Blue lines = points inside epsilon",
                 "Purple = border point",
                 "Black = noise",
                 "Circle = epsilon range"
@@ -3254,7 +3905,9 @@ class AppController{
 
         if(this.mode === "spectral"){
             return [
-                "Graph / affinity = similarity between points",
+                "Blue edges = strongest RBF affinities",
+                "Blue halos = point degree in the graph",
+                "Mini plot = spectral embedding",
                 "Normalized Laplacian = transformed space",
                 "Colors = final clusters after K-Means"
             ];
@@ -3263,6 +3916,9 @@ class AppController{
         if(this.mode === "fuzzy"){
             return [
                 "Transparency = maximum membership",
+                "Purple halo = ambiguous membership",
+                "Weighted lines = strongest memberships",
+                "Dashed lines = fuzzy centroid movement",
                 "Cross = centroid",
                 "Soft colors = soft membership"
             ];
@@ -4044,6 +4700,7 @@ return buildDendrogram(merges);`;
         }
 
         if(this.kmeans.init_centroid.length === 0){
+            window.alert("Generate centroids first to run K-Means.");
             this.setStatus("Generate centroids first");
             return;
         }
@@ -4289,8 +4946,8 @@ return buildDendrogram(merges);`;
             return;
         }
 
-        if(this.data.length > 220){
-            this.setStatus("HCluster: keep points below 220 to avoid freezing the browser");
+        if(this.data.length > 30){
+            this.setStatus("HCluster: keep points at 30 or below to avoid freezing the browser");
             return;
         }
 
@@ -4339,7 +4996,8 @@ return buildDendrogram(merges);`;
                 this.data,
                 this.kmeans.init_centroid,
                 this.currentResult,
-                DOM("showBoundaries").checked
+                DOM("showBoundaries").checked,
+                DOM("showDetails").checked
             );
             return;
         }
@@ -4349,7 +5007,8 @@ return buildDendrogram(merges);`;
                 this.data,
                 this.currentResult,
                 DOM("dbscanDrawEps").checked,
-                DOM("showBoundaries").checked
+                DOM("showBoundaries").checked,
+                DOM("showDetails").checked
             );
             return;
         }
@@ -4358,7 +5017,8 @@ return buildDendrogram(merges);`;
             this.canvasHandler.drawSpectral(
                 this.data,
                 this.currentResult,
-                DOM("showBoundaries").checked
+                DOM("showBoundaries").checked,
+                DOM("showDetails").checked
             );
             return;
         }
@@ -4367,7 +5027,8 @@ return buildDendrogram(merges);`;
             this.canvasHandler.drawFuzzy(
                 this.data,
                 this.currentResult,
-                DOM("showBoundaries").checked
+                DOM("showBoundaries").checked,
+                DOM("showDetails").checked
             );
             return;
         }
@@ -4411,6 +5072,7 @@ return buildDendrogram(merges);`;
     }
 
     clearResult(){
+        this.stopAutoplay(false);
         this.currentResult = null;
         this.currentSteps = [];
         this.stepIndex = 0;

@@ -18,7 +18,11 @@ The application lets you:
 
 - generate interactive datasets
 - run different clustering algorithms
-- visualize intermediate steps
+- execute algorithms instantly
+- play animated algorithm steps
+- move step by step through intermediate states
+- stop an active animation at any time
+- control the animation speed
 - observe boundaries and decision regions
 - compare centroid-based, density-based, and structure-based approaches
 - understand intuitively how results change when parameters change
@@ -56,7 +60,7 @@ The project can be run directly in the browser through GitHub Pages.
 ![HCluster](imgs/hcluster.png)
 
 ### K-Means
-![KMeans](imgs/kmeanspng.png)
+![KMeans](imgs/kmeans.png)
 
 ---
 
@@ -78,6 +82,19 @@ Adjustable parameters:
 - spread
 - noise percentage
 - number of clusters
+
+---
+
+# Execution Controls
+
+The playground includes four main execution modes designed to make the algorithms easier to explore:
+
+- **Play ▶️**: runs the selected algorithm as an animation, showing its intermediate steps over time.
+- **Step ⏭️**: advances the selected algorithm by one step, useful for understanding each phase slowly.
+- **Stop 🛑**: stops the current animated execution without clearing the dataset.
+- **Execute ⚡**: runs the selected algorithm immediately and shows the final result.
+
+A speed slider controls how fast the animated execution runs during Play mode.
 
 ---
 
@@ -120,7 +137,11 @@ This mode lets you observe how the initial centroid choice affects the final clu
 
 The project includes several visualizations designed to make the algorithms easier to understand:
 
+- animated Play mode
 - step-by-step execution
+- instant Execute mode
+- stoppable algorithm animations
+- adjustable animation speed
 - Voronoi-style boundaries for K-Means
 - convergence trails for Mean Shift
 - density contour map for Mean Shift
