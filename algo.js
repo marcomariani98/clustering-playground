@@ -1,13 +1,13 @@
 "use strict";
 
 /*
-    Progetto didattico sul clustering.
-    Il file e volutamente unico: i dati, gli algoritmi, il disegno su canvas
-    e la UI vivono qui, cosi si puo seguire il flusso senza saltare tra moduli.
-    Scusate del casino, ma e stato divertente da scrivere e spero lo sia da leggere!
+    Educational clustering project.
+    This file is intentionally kept as one piece: data, algorithms, canvas drawing
+    and UI all live here, so the full flow can be followed without jumping between modules.
+    Sorry for the mess, but it was fun to write and I hope it is fun to read!
 */
 
-/* Palette condivisa tra gli algoritmi: ogni cluster prende un colore ciclico. */
+/* Shared palette across algorithms: each cluster gets a cyclic color. */
 const cluster_color = [
     "#e6194b", "#3cb44b", "#e5c700", "#4363d8", "#f58231", "#911eb4",
     "#46f0f0", "#f032e6", "#bcf60c", "#fabebe", "#008080", "#e6beff",
@@ -18,7 +18,7 @@ const cluster_color = [
 const pointSize = 4;
 const crossSize = 20;
 
-/* Piccoli helper DOM: tengono il codice della UI piu leggibile. */
+/* Small DOM helpers: they keep the UI code easier to read. */
 function DOM(id){
     return document.getElementById(id);
 }
@@ -31,7 +31,7 @@ function DOMsetValue(id,value){
     DOM(id).textContent = value;
 }
 
-/* Distanza euclidea classica tra due punti del canvas. */
+/* Classic Euclidean distance between two canvas points. */
 function euclidianDistance(point1,point2){
     let dx = Math.pow(point2.x - point1.x,2);
     let dy = Math.pow(point2.y - point1.y,2);
@@ -43,7 +43,7 @@ function randomBetween(min,max){
     return min + Math.random() * (max - min);
 }
 
-/* Blocca un valore dentro un intervallo: utile per non generare punti fuori canvas. */
+/* Keeps a value inside a range: useful to avoid generating points outside the canvas. */
 function clamp(value,min,max){
     return Math.max(min,Math.min(max,value));
 }
@@ -77,9 +77,9 @@ function getMaxDist(points,centroid){
 }
 
 /*
-    Generatori dati.
-    Numero punti decide quanti punti creare, Spread decide la scala della forma,
-    Noise % decide quanto i punti si allontanano dalla distribuzione ideale.
+    Dataset generators.
+    Points decides how many points to create, Spread controls the scale of the shape,
+    Noise % controls how far points move away from the ideal distribution.
 */
 
 function generateNoisePoints(count,width,height){
@@ -102,7 +102,7 @@ function generateRandomClusters(clusterCount,totalPoints,spread,noisePercent,wid
     let noise = spread * (noisePercent / 100) * 1.4;
 
     for(let i = 0;i < clusterCount;i++){
-        /* Ogni cluster parte da un centro casuale, poi riceve una quota dei punti totali. */
+        /* Each cluster starts from a random center, then receives a share of the total points. */
         let center = {
             x: randomBetween(margin,width - margin),
             y: randomBetween(margin,height - margin)
@@ -114,7 +114,7 @@ function generateRandomClusters(clusterCount,totalPoints,spread,noisePercent,wid
         }
 
         for(let j = 0;j < clusterSize;j++){
-            /* sqrt(Math.random()) evita di ammassare troppi punti vicino al centro. */
+            /* sqrt(Math.random()) avoids packing too many points near the center. */
             let angle = Math.random() * Math.PI * 2;
             let radius = Math.sqrt(Math.random()) * spread;
             let x = center.x + Math.cos(angle) * radius + randomBetween(-noise,noise);
@@ -139,7 +139,7 @@ function generateTwoMoons(count,width,height,spread,noisePercent){
     let firstMoonCount = Math.ceil(count / 2);
     let secondMoonCount = count - firstMoonCount;
 
-    /* Prima luna: arco superiore. */
+    /* First moon: upper arc. */
     for(let i = 0;i < firstMoonCount;i++){
         let t = Math.PI * (i / Math.max(1,firstMoonCount - 1));
         let x = centerX + Math.cos(t) * radius + randomBetween(-noise,noise);
@@ -147,7 +147,7 @@ function generateTwoMoons(count,width,height,spread,noisePercent){
         points.push({x:clamp(x,8,width - 8),y:clamp(y,8,height - 8)});
     }
 
-    /* Seconda luna: stesso arco ribaltato e spostato. */
+    /* Second moon: same arc, flipped and shifted. */
     for(let i = 0;i < secondMoonCount;i++){
         let t = Math.PI * (i / Math.max(1,secondMoonCount - 1));
         let x = centerX + radius * 0.95 - Math.cos(t) * radius + randomBetween(-noise,noise);
@@ -173,7 +173,7 @@ function generateConcentricCircles(count,width,height,spread,noisePercent){
     let secondCircleCount = count - firstCircleCount;
     let offset = Math.random() * Math.PI * 2;
 
-    /* Disegna un anello con jitter radiale e tangenziale controllato da Noise %. */
+    /* Draws a ring with radial and tangential jitter controlled by Noise %. */
     let pushRing = (ringCount,radius,rotation) => {
         for(let i = 0;i < ringCount;i++){
             let slot = (i + Math.random()) / Math.max(1,ringCount);
@@ -202,7 +202,7 @@ function generateSpiral(count,width,height,spread,noisePercent){
     let maxRadius = Math.min(width,height) * 0.22 + spread * 0.75;
     let noise = spread * (noisePercent / 100) * 0.45;
 
-    /* Due bracci opposti, cosi Spectral e DBSCAN hanno un dataset piu interessante. */
+    /* Two opposite arms, so Spectral and DBSCAN get a more interesting dataset. */
     for(let arm = 0;arm < 2;arm++){
         let armCount = Math.floor(count / 2);
 
@@ -232,9 +232,9 @@ function generateSpiral(count,width,height,spread,noisePercent){
 }
 
 /*
-    CanvasHandler sa solo disegnare.
-    Gli algoritmi preparano i risultati, questa classe decide come mostrarli:
-    punti, centroidi, boundaries, ellissi, MST, dendrogrammi e legenda visiva.
+    CanvasHandler only knows how to draw.
+    Algorithms prepare the results, this class decides how to show them:
+    points, centroids, boundaries, ellipses, MST, dendrograms and visual legends.
 */
 class CanvasHandler{
     constructor(canvas){
@@ -393,7 +393,7 @@ class CanvasHandler{
             }
         }
 
-        this.drawInfo(`Spectral - ${result.phaseLabel || "cluster finali"}`);
+        this.drawInfo(`Spectral - ${result.phaseLabel || "final clusters"}`);
     }
 
     drawFuzzy(data,result,showBoundaries){
@@ -421,10 +421,10 @@ class CanvasHandler{
         }
 
         this.drawCentroids(result.centroids,"#111827");
-        this.drawInfo(`Fuzzy C-Means - iterazioni: ${result.iterations} - alpha = membership`);
+        this.drawInfo(`Fuzzy C-Means - iterations: ${result.iterations} - alpha = membership`);
     }
 
-    drawMeanShift(data,result,showBoundaries,showTrails,showDetails){
+    drawMeanShift(data,result,showDensity,showTrails,showDetails){
         this.reset();
 
         if(!result){
@@ -432,13 +432,13 @@ class CanvasHandler{
             return;
         }
 
-        if(showBoundaries){
-            /* Per Mean Shift lo sfondo non copre tutto: mostra solo le zone vicine ai modi. */
-            this.drawMeanShiftZones(result);
+        if(showDensity){
+            /* Topological density map: light bands and KDE contour lines. */
+            this.drawMeanShiftDensityMap(data,result);
         }
 
         if(showTrails && result.trails){
-            /* Le scie fanno vedere il movimento dei punti verso zone piu dense. */
+            /* Trails show how points move toward denser areas. */
             this.drawTrails(result.trails,result.assignment,result.clusters);
         }
 
@@ -455,38 +455,133 @@ class CanvasHandler{
             }
         }
 
-        this.drawInfo(`Mean Shift - modi: ${result.modes.length} - deboli/noise: ${result.weakCount} - iterazioni: ${result.iterations}`);
+        this.drawInfo(`Mean Shift - modes: ${result.modes.length} - weak/noise: ${result.weakCount} - iterations: ${result.iterations}`);
     }
 
-    drawMeanShiftZones(result){
-        let cellSize = 10;
+    drawMeanShiftDensityMap(data,result){
+        if(!data || data.length === 0 || !result || !result.bandwidth){
+            return;
+        }
 
-        for(let y = 0;y < this.height;y += cellSize){
-            for(let x = 0;x < this.width;x += cellSize){
-                let point = {x:x + cellSize / 2,y:y + cellSize / 2};
-                let candidate = -1;
-                let minDistance = Infinity;
+        let cellSize = 14;
+        let cols = Math.ceil(this.width / cellSize) + 1;
+        let rows = Math.ceil(this.height / cellSize) + 1;
+        let bandwidth = Math.max(1,result.bandwidth);
+        let sigma2 = 2 * bandwidth * bandwidth;
+        let values = [];
+        let maxDensity = 0;
 
-                for(let [i,mode] of result.modes.entries()){
-                    let cluster = result.clusters[i] || [];
+        for(let row = 0;row < rows;row++){
+            values[row] = [];
 
-                    if(cluster.length <= 2){
-                        continue;
-                    }
+            for(let col = 0;col < cols;col++){
+                let x = col * cellSize;
+                let y = row * cellSize;
+                let density = 0;
 
-                    let distance = euclidianDistance(point,mode);
-
-                    if(distance <= result.bandwidth && distance < minDistance){
-                        minDistance = distance;
-                        candidate = i;
-                    }
+                for(let point of data){
+                    let dx = x - point.x;
+                    let dy = y - point.y;
+                    density += Math.exp(-(dx * dx + dy * dy) / sigma2);
                 }
 
-                if(candidate >= 0){
-                    this.ctx.fillStyle = this.colorAlpha(cluster_color[candidate % cluster_color.length],0.12);
-                    this.ctx.fillRect(x,y,cellSize,cellSize);
+                density = density / data.length;
+                values[row][col] = density;
+
+                if(density > maxDensity){
+                    maxDensity = density;
                 }
             }
+        }
+
+        if(maxDensity <= 0){
+            return;
+        }
+
+        this.drawMeanShiftDensityBands(values,maxDensity,cellSize);
+        this.drawMeanShiftContourLines(values,maxDensity,cellSize);
+    }
+
+    drawMeanShiftDensityBands(values,maxDensity,cellSize){
+        let bands = [
+            {limit:0.18,color:"rgba(59, 130, 246, 0.045)"},
+            {limit:0.32,color:"rgba(20, 184, 166, 0.060)"},
+            {limit:0.50,color:"rgba(34, 197, 94, 0.075)"},
+            {limit:0.68,color:"rgba(234, 179, 8, 0.090)"},
+            {limit:0.84,color:"rgba(249, 115, 22, 0.105)"},
+            {limit:1.01,color:"rgba(220, 38, 38, 0.120)"}
+        ];
+
+        for(let row = 0;row < values.length - 1;row++){
+            for(let col = 0;col < values[row].length - 1;col++){
+                let normalized = values[row][col] / maxDensity;
+                let band = bands.find((item) => normalized <= item.limit);
+
+                this.ctx.fillStyle = band.color;
+                this.ctx.fillRect(col * cellSize,row * cellSize,cellSize,cellSize);
+            }
+        }
+    }
+
+    drawMeanShiftContourLines(values,maxDensity,cellSize){
+        let levels = [0.18,0.32,0.46,0.60,0.74,0.88];
+
+        this.ctx.save();
+        this.ctx.lineWidth = 1.1;
+        this.ctx.lineCap = "round";
+        this.ctx.lineJoin = "round";
+
+        for(let [levelIndex,levelRatio] of levels.entries()){
+            let threshold = maxDensity * levelRatio;
+            this.ctx.beginPath();
+
+            for(let row = 0;row < values.length - 1;row++){
+                for(let col = 0;col < values[row].length - 1;col++){
+                    this.drawMeanShiftContourCell(values,row,col,threshold,cellSize);
+                }
+            }
+
+            let alpha = 0.18 + levelIndex * 0.055;
+            this.ctx.strokeStyle = `rgba(15, 23, 42, ${alpha})`;
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
+    }
+
+    drawMeanShiftContourCell(values,row,col,threshold,cellSize){
+        let x = col * cellSize;
+        let y = row * cellSize;
+        let topLeft = values[row][col];
+        let topRight = values[row][col + 1];
+        let bottomRight = values[row + 1][col + 1];
+        let bottomLeft = values[row + 1][col];
+        let points = [];
+
+        let addIntersection = (first,second,firstPoint,secondPoint) => {
+            if((first < threshold && second < threshold) || (first >= threshold && second >= threshold)){
+                return;
+            }
+
+            let ratio = (threshold - first) / (second - first);
+            points.push({
+                x:firstPoint.x + (secondPoint.x - firstPoint.x) * ratio,
+                y:firstPoint.y + (secondPoint.y - firstPoint.y) * ratio
+            });
+        };
+
+        addIntersection(topLeft,topRight,{x:x,y:y},{x:x + cellSize,y:y});
+        addIntersection(topRight,bottomRight,{x:x + cellSize,y:y},{x:x + cellSize,y:y + cellSize});
+        addIntersection(bottomRight,bottomLeft,{x:x + cellSize,y:y + cellSize},{x:x,y:y + cellSize});
+        addIntersection(bottomLeft,topLeft,{x:x,y:y + cellSize},{x:x,y:y});
+
+        if(points.length < 2){
+            return;
+        }
+
+        for(let i = 0;i < points.length - 1;i += 2){
+            this.ctx.moveTo(points[i].x,points[i].y);
+            this.ctx.lineTo(points[i + 1].x,points[i + 1].y);
         }
     }
 
@@ -596,7 +691,7 @@ class CanvasHandler{
         this.ctx.save();
         this.ctx.font = "700 13px Arial";
         this.ctx.fillStyle = "rgba(17, 24, 39, 0.76)";
-        this.ctx.fillText(`GMM - iterazioni: ${result.iterations} - alpha = confidenza`,16,24);
+        this.ctx.fillText(`GMM - iterations: ${result.iterations} - alpha = confidence`,16,24);
         this.ctx.restore();
     }
 
@@ -777,10 +872,10 @@ class CanvasHandler{
     }
 
     drawHDBSCANInfo(result){
-        let text = result.phaseLabel || `HDBSCAN - soglia: ${result.threshold.toFixed(2)} - cluster: ${result.clusters.length}`;
+        let text = result.phaseLabel || `HDBSCAN - threshold: ${result.threshold.toFixed(2)} - clusters: ${result.clusters.length}`;
 
         if(result.stability !== undefined){
-            text += ` - stabilita: ${result.stability.toFixed(2)}`;
+            text += ` - stability: ${result.stability.toFixed(2)}`;
         }
 
         this.ctx.save();
@@ -1037,7 +1132,7 @@ class CanvasHandler{
 
         this.ctx.fillStyle = "#172033";
         this.ctx.font = "800 13px Arial";
-        this.ctx.fillText("Gerarchia HCluster",panel.x + 16,panel.y + 24);
+        this.ctx.fillText("HCluster hierarchy",panel.x + 16,panel.y + 24);
 
         for(let cluster of result.allClusters){
             if(!cluster.tree || cluster.tree.length !== 2 || !layout.has(cluster.id)){
@@ -1107,8 +1202,8 @@ class CanvasHandler{
 
 /*
     K-Means.
-    Assegna ogni punto al centroide piu vicino, poi sposta i centroidi
-    nella media dei punti assegnati. Ripete finche i centroidi si stabilizzano.
+    Assigns each point to the nearest centroid, then moves centroids
+    to the average of their assigned points. Repeats until centroids stabilize.
 */
 class kMeans{
     constructor(canvasHandler){
@@ -1179,7 +1274,7 @@ class kMeans{
     }
 
     run(data,maxIterations = 100){
-        /* Ogni risultato intermedio viene salvato per la modalita Step. */
+        /* Every intermediate result is saved for Step mode. */
         let centroids = this.init_centroid.map((point) => ({x:point.x,y:point.y}));
         let clusters = [];
         let steps = [];
@@ -1269,8 +1364,8 @@ class kMeans{
 
 /*
     Spectral Clustering
-    Costruisce una matrice di affinita RBF, la normalizza con la degree matrix,
-    ricava un embedding spettrale e poi usa K-Means nello spazio trasformato.
+    Builds an RBF affinity matrix, normalizes it with the degree matrix,
+    extracts a spectral embedding and then runs K-Means in the transformed space.
 */
 class SpectralClustering{
     constructor(canvasHandler){
@@ -1279,7 +1374,7 @@ class SpectralClustering{
     }
 
     run(data,k,sigma){
-        /* Pipeline: affinita -> laplaciana normalizzata -> embedding -> K-Means. */
+        /* Pipeline: affinity -> normalized Laplacian -> embedding -> K-Means. */
         let affinity = this.calculateAffinity(data,sigma);
         let laplacian = this.calculateNormalizedLaplacian(affinity);
         let normalizedAffinity = this.calculateNormalizedAffinity(affinity);
@@ -1291,19 +1386,19 @@ class SpectralClustering{
         this.steps = [
             {
                 clusters:[data],
-                phaseLabel:"1. Similarita RBF calcolata"
+                phaseLabel:"1. RBF similarity calculated"
             },
             {
                 clusters:[data],
-                phaseLabel:"2. Laplaciana normalizzata L calcolata"
+                phaseLabel:"2. Normalized Laplacian L calculated"
             },
             {
                 clusters:[data],
-                phaseLabel:"3. Eigenvectors della Laplaciana estratti"
+                phaseLabel:"3. Laplacian eigenvectors extracted"
             },
             {
                 clusters:clusters,
-                phaseLabel:"4. K-Means nello spazio spettrale"
+                phaseLabel:"4. K-Means in spectral space"
             }
         ];
 
@@ -1313,7 +1408,7 @@ class SpectralClustering{
             affinity:affinity,
             laplacian:laplacian,
             steps:this.steps,
-            phaseLabel:"cluster finali"
+            phaseLabel:"final clusters"
         };
     }
 
@@ -1551,8 +1646,8 @@ class SpectralClustering{
 
 /*
     Fuzzy C-Means.
-    Ogni punto appartiene a tutti i cluster con pesi diversi.
-    La trasparenza nel canvas mostra quanto e forte la membership principale.
+    Each point belongs to all clusters with different weights.
+    Canvas transparency shows how strong the main membership is.
 */
 class FuzzyCMeans{
     constructor(canvasHandler){
@@ -1561,7 +1656,7 @@ class FuzzyCMeans{
     }
 
     run(data,k,m,maxIterations){
-        /* m controlla quanto sono morbide le appartenenze. */
+        /* m controls how soft the memberships are. */
         let memberships = this.initMembership(data.length,k);
         let centroids = [];
         let steps = [];
@@ -1682,8 +1777,8 @@ class FuzzyCMeans{
 
 /*
     Mean Shift.
-    Non divide tutto lo spazio: spinge ogni punto verso una zona piu densa.
-    I punti che convergono allo stesso modo diventano un cluster.
+    It does not split the whole space: it pushes each point toward a denser area.
+    Points that converge to the same mode become a cluster.
 */
 class MeanShift{
     constructor(canvasHandler){
@@ -1692,7 +1787,7 @@ class MeanShift{
     }
 
     run(data,bandwidth,maxIterations){
-        /* shifted sono le posizioni mobili, data resta il dataset originale da disegnare. */
+        /* shifted stores moving positions, data stays as the original dataset to draw. */
         let shifted = data.map((point) => ({x:point.x,y:point.y}));
         let trails = data.map((point) => [{x:point.x,y:point.y}]);
         let steps = [];
@@ -1798,15 +1893,15 @@ class MeanShift{
             bandwidth:bandwidth,
             weakCount:weakCount,
             iterations:iterations,
-            phaseLabel:`spostamento verso zone dense ${iterations}`
+            phaseLabel:`shift toward dense areas ${iterations}`
         };
     }
 }
 
 /*
     Gaussian Mixture Model.
-    Usa EM: E-step per le responsabilita dei punti, M-step per aggiornare
-    peso, media e covarianza di ogni componente gaussiana.
+    Uses EM: E-step for point responsibilities, M-step to update
+    weight, mean and covariance of each Gaussian component.
 */
 class GMM{
     constructor(canvasHandler){
@@ -1817,7 +1912,7 @@ class GMM{
     }
 
     run(data,k,maxIterations = 50){
-        /* responsibilities[i][j] dice quanto il punto i appartiene alla gaussiana j. */
+        /* responsibilities[i][j] says how much point i belongs to Gaussian j. */
         this.components = this.initComponents(data,k);
         this.steps = [];
 
@@ -2116,8 +2211,8 @@ class GMM{
 
 /*
     DBSCAN.
-    Cerca zone dense usando epsilon e MinPTS. I punti possono essere core,
-    border oppure noise, senza dover scegliere prima il numero di cluster.
+    Looks for dense areas using epsilon and MinPTS. Points can be core,
+    border or noise, without choosing the number of clusters first.
 */
 class DBSCAN{
     constructor(canvasHandler){
@@ -2131,7 +2226,7 @@ class DBSCAN{
         this.eps = eps;
         this.minPts = minPts;
 
-        /* Copio i punti aggiungendo l'indice originale: serve per riconoscerli durante la visita. */
+        /* Copy points and add the original index: this helps recognize them during the visit. */
         let dataset = data.map((point,index) => ({
             x:point.x,
             y:point.y,
@@ -2268,9 +2363,9 @@ class DBSCAN{
 }
 
 /*
-    HDBSCAN didattico.
-    Parte dalle core distance, costruisce mutual reachability e MST,
-    poi prova diversi tagli e sceglie quello con stabilita semplificata migliore.
+    Educational HDBSCAN.
+    Starts from core distances, builds mutual reachability and MST,
+    then tries different cuts and chooses the one with the best simplified stability.
 */
 class HDBSCAN{
     constructor(canvasHandler){
@@ -2279,7 +2374,7 @@ class HDBSCAN{
     }
 
     run(data,minPts,minClusterSize){
-        /* Manteniamo l'indice originale per collegare calcoli e disegno. */
+        /* Keep the original index to connect calculations and drawing. */
         let dataset = data.map((point,index) => ({
             x:point.x,
             y:point.y,
@@ -2302,7 +2397,7 @@ class HDBSCAN{
 
         steps.push({
             phase:"core",
-            phaseLabel:"1. Core distance: raggio del vicino minPts",
+            phaseLabel:"1. Core distance: radius of the minPts neighbor",
             clusters:[],
             noise:dataset,
             coreDistances:coreDistances,
@@ -2312,7 +2407,7 @@ class HDBSCAN{
 
         steps.push({
             phase:"mutual",
-            phaseLabel:"2. Mutual reachability: archi pesati dalla densita",
+            phaseLabel:"2. Mutual reachability: density-weighted edges",
             clusters:[],
             noise:dataset,
             coreDistances:coreDistances,
@@ -2323,7 +2418,7 @@ class HDBSCAN{
 
         steps.push({
             phase:"mst",
-            phaseLabel:"3. MST: scheletro minimo della mutual reachability",
+            phaseLabel:"3. MST: minimum skeleton of mutual reachability",
             clusters:[],
             noise:dataset,
             coreDistances:coreDistances,
@@ -2360,7 +2455,7 @@ class HDBSCAN{
 
         let selectedResult = this.cloneResult(bestResult);
         selectedResult.phase = "selected";
-        selectedResult.phaseLabel = `7. Cluster scelti: stabilita semplificata massima`;
+        selectedResult.phaseLabel = `7. Selected clusters: maximum simplified stability`;
         selectedResult.steps = steps;
         steps.push(selectedResult);
         return selectedResult;
@@ -2381,18 +2476,18 @@ class HDBSCAN{
     }
 
     getThresholdLabel(index,total,threshold){
-        let zone = "media";
+        let zone = "medium";
         let stepNumber = 5;
 
         if(index === 0){
-            zone = "alta";
+            zone = "high";
             stepNumber = 4;
         }else if(index === total - 1){
-            zone = "bassa";
+            zone = "low";
             stepNumber = 6;
         }
 
-        return `${stepNumber}. Taglio a soglia ${zone}: ${threshold.toFixed(2)}`;
+        return `${stepNumber}. ${zone} threshold cut: ${threshold.toFixed(2)}`;
     }
 
     calculateCoreDistances(data,minPts){
@@ -2562,9 +2657,9 @@ class HDBSCAN{
 }
 
 /*
-    Clustering gerarchico agglomerativo.
-    Si parte da un cluster per punto e si fondono via via i due cluster piu vicini,
-    mantenendo la storia per mostrare dendrogramma e iterazioni.
+    Agglomerative hierarchical clustering.
+    Starts with one cluster per point and repeatedly merges the two closest clusters,
+    keeping the history to show the dendrogram and iterations.
 */
 class HCluster{
     constructor(canvasHandler){
@@ -2573,7 +2668,7 @@ class HCluster{
     }
 
     run(data,linkage,metric){
-        /* nextId crea nomi stabili: i sotto-cluster restano riconoscibili negli step. */
+        /* nextId creates stable names: sub-clusters stay recognizable across steps. */
         let nextId = 0;
         let initClusters = data.length;
         let allClusters = [];
@@ -2808,9 +2903,9 @@ class HCluster{
 }
 
 /*
-    AppController collega tutto:
-    legge i controlli della sidebar, chiama l'algoritmo selezionato,
-    aggiorna stato/legenda e chiede al CanvasHandler di ridisegnare.
+    AppController connects everything:
+    reads sidebar controls, calls the selected algorithm,
+    updates status/legend and asks CanvasHandler to redraw.
 */
 class AppController{
     constructor(){
@@ -2834,12 +2929,13 @@ class AppController{
         this.bindEvents();
         this.updateRangeValues();
         this.updateLegend();
+        this.updatePseudocode();
         this.updateQualityLegend();
         this.render();
     }
 
     bindEvents(){
-        /* Tutti gli eventi UI stanno qui, cosi il resto del codice resta concentrato sugli algoritmi. */
+        /* All UI events live here, so the rest of the code stays focused on the algorithms. */
         window.addEventListener("resize",() => {
             this.canvasHandler.resize();
             this.render();
@@ -2848,7 +2944,7 @@ class AppController{
         this.canvasHandler.canvas.addEventListener("click",(event) => {
             this.data.push(this.canvasHandler.getMouse(event));
             this.clearResult();
-            this.setStatus(`Punti: ${this.data.length}`);
+            this.setStatus(`Points: ${this.data.length}`);
             this.render();
         });
 
@@ -2861,7 +2957,7 @@ class AppController{
 
             this.kmeans.init_centroid.push(this.canvasHandler.getMouse(event));
             this.clearResult();
-            this.setStatus(`Centroidi: ${this.kmeans.init_centroid.length}`);
+            this.setStatus(`Centroids: ${this.kmeans.init_centroid.length}`);
             this.render();
         });
 
@@ -2884,7 +2980,7 @@ class AppController{
 
             this.data = this.data.concat(points);
             this.clearResult();
-            this.setStatus(`Aggiunti ${points.length} punti noise`);
+            this.setStatus(`Added ${points.length} noise points`);
             this.render();
         });
 
@@ -2904,7 +3000,7 @@ class AppController{
 
             this.data = this.data.concat(points);
             this.clearResult();
-            this.setStatus(`Aggiunti ${points.length} punti in ${clusterCount} cluster, noise ${noisePercent}%`);
+            this.setStatus(`Added ${points.length} points in ${clusterCount} clusters, noise ${noisePercent}%`);
             this.render();
         });
 
@@ -2916,7 +3012,7 @@ class AppController{
 
             this.data = this.data.concat(points);
             this.clearResult();
-            this.setStatus(`Aggiunto dataset two moons: ${points.length} punti, noise ${noisePercent}%, spread ${spread}`);
+            this.setStatus(`Added two moons dataset: ${points.length} points, noise ${noisePercent}%, spread ${spread}`);
             this.render();
         });
 
@@ -2928,7 +3024,7 @@ class AppController{
 
             this.data = this.data.concat(points);
             this.clearResult();
-            this.setStatus(`Aggiunto dataset cerchi concentrici: ${points.length} punti, noise ${noisePercent}%, spread ${spread}`);
+            this.setStatus(`Added concentric circles dataset: ${points.length} points, noise ${noisePercent}%, spread ${spread}`);
             this.render();
         });
 
@@ -2940,7 +3036,7 @@ class AppController{
 
             this.data = this.data.concat(points);
             this.clearResult();
-            this.setStatus(`Aggiunto dataset spirale: ${points.length} punti, noise ${noisePercent}%, spread ${spread}`);
+            this.setStatus(`Added spiral dataset: ${points.length} points, noise ${noisePercent}%, spread ${spread}`);
             this.render();
         });
 
@@ -2948,13 +3044,13 @@ class AppController{
             this.data = [];
             this.kmeans.reset();
             this.clearResult();
-            this.setStatus("Punti rimossi");
+            this.setStatus("Points removed");
             this.render();
         });
 
         DOM("clearResult").addEventListener("click",() => {
             this.clearResult();
-            this.setStatus("Risultato pulito");
+            this.setStatus("Result cleared");
             this.render();
         });
 
@@ -2962,13 +3058,14 @@ class AppController{
         DOM("showDetails").addEventListener("change",() => this.render());
         DOM("showTrails").addEventListener("change",() => this.render());
         DOM("showLegend").addEventListener("change",() => this.updateLegend());
+        DOM("meanShiftDensityMap").addEventListener("change",() => this.render());
         DOM("dbscanDrawEps").addEventListener("change",() => this.render());
 
         DOM("playAlgorithm").addEventListener("click",() => this.runCurrent(false));
         DOM("stepAlgorithm").addEventListener("click",() => this.runCurrent(true));
 
         DOM("randomCentroids").addEventListener("click",() => {
-            let k = this.readPositiveInt("kValue","K non valido");
+            let k = this.readPositiveInt("kValue","Invalid K");
 
             if(!k){
                 return;
@@ -2976,12 +3073,12 @@ class AppController{
 
             this.kmeans.generateInitCentroids(k);
             this.clearResult();
-            this.setStatus(`Centroidi generati: ${this.kmeans.init_centroid.length}`);
+            this.setStatus(`Generated centroids: ${this.kmeans.init_centroid.length}`);
             this.render();
         });
 
         DOM("kppCentroids").addEventListener("click",() => {
-            let k = this.readPositiveInt("kValue","K non valido");
+            let k = this.readPositiveInt("kValue","Invalid K");
 
             if(!k || !this.checkData()){
                 return;
@@ -2989,7 +3086,7 @@ class AppController{
 
             this.kmeans.kppCentroids(this.data,k);
             this.clearResult();
-            this.setStatus(`Centroidi KMeans++: ${this.kmeans.init_centroid.length}`);
+            this.setStatus(`KMeans++ centroids: ${this.kmeans.init_centroid.length}`);
             this.render();
         });
 
@@ -2999,7 +3096,7 @@ class AppController{
         DOM("resetKmeans").addEventListener("click",() => {
             this.kmeans.reset();
             this.clearResult();
-            this.setStatus("Centroidi rimossi");
+            this.setStatus("Centroids removed");
             this.render();
         });
 
@@ -3061,13 +3158,14 @@ class AppController{
             panel.classList.toggle("hidden",panel.dataset.panel !== mode);
         });
 
-        this.setStatus(`Modalita: ${mode}`);
+        this.setStatus(`Mode: ${mode}`);
         this.updateLegend();
+        this.updatePseudocode();
         this.render();
     }
 
     runCurrent(isStep){
-        /* Play e Step sono comuni: cambia solo la funzione chiamata in base al menu algoritmo. */
+        /* Play and Step are shared: only the called function changes based on the algorithm menu. */
         if(this.mode === "kmeans"){
             this.runKMeans(isStep);
             return;
@@ -3107,72 +3205,73 @@ class AppController{
     }
 
     getLegendItems(){
-        /* La legenda e dinamica: spiega solo i simboli utili all'algoritmo selezionato. */
+        /* The legend is dynamic: it only explains symbols used by the selected algorithm. */
         if(this.mode === "kmeans"){
             return [
-                "Croce rossa = centroidi iniziali",
-                "Croce verde = centroidi finali",
-                "Sfondo = regione del centroide piu vicino"
+                "Red cross = initial centroids",
+                "Green cross = final centroids",
+                "Background = nearest-centroid region"
             ];
         }
 
         if(this.mode === "gmm"){
             return [
-                "Ellisse = covarianza della gaussiana",
-                "Croce = media della componente",
-                "Trasparenza = confidenza del punto"
+                "Ellipse = Gaussian covariance",
+                "Cross = component mean",
+                "Transparency = point confidence"
             ];
         }
 
         if(this.mode === "dbscan"){
             return [
-                "Colore = cluster",
-                "Viola = border point",
-                "Nero = noise",
-                "Cerchio = range epsilon"
+                "Color = cluster",
+                "Purple = border point",
+                "Black = noise",
+                "Circle = epsilon range"
             ];
         }
 
         if(this.mode === "meanshift"){
             return [
-                "Punti colorati = cluster finale",
-                "Croce = modo / massimo di densita",
-                "Cerchio = bandwidth",
-                "Scia = spostamento verso la densita",
-                "Grigio = micro-cluster o noise",
-                "Sfondo = solo zona vicina al modo"
+                "Colored points = final cluster",
+                "Cross = mode / density maximum",
+                "Circle = bandwidth",
+                "Trail = shift toward density",
+                "Curves = density function levels",
+                "Colored bands = KDE intensity",
+                "Gray = micro-cluster or noise"
             ];
         }
 
         if(this.mode === "hdbscan"){
             return [
-                "Linee = MST su mutual reachability",
-                "Cerchi = cluster scelti",
-                "Nero = noise",
-                "Soglia = livello di densita nello step"
+                "Lines = MST on mutual reachability",
+                "Circles = selected clusters",
+                "Black = noise",
+                "Threshold = density level in the step"
             ];
         }
 
         if(this.mode === "spectral"){
             return [
-                "Grafo / affinita = similarita tra punti",
-                "Laplaciana normalizzata = spazio trasformato",
-                "Colori = cluster finali dopo K-Means"
+                "Graph / affinity = similarity between points",
+                "Normalized Laplacian = transformed space",
+                "Colors = final clusters after K-Means"
             ];
         }
 
         if(this.mode === "fuzzy"){
             return [
-                "Trasparenza = membership massima",
-                "Croce = centroide",
-                "Colori sfumati = appartenenza soft"
+                "Transparency = maximum membership",
+                "Cross = centroid",
+                "Soft colors = soft membership"
             ];
         }
 
         return [
-            "Link = distanza tra sotto-cluster",
-            "Etichette C/P = cluster e punti mantenuti negli step",
-            "Albero finale = gerarchia completa"
+            "Link = distance between sub-clusters",
+            "C/P labels = clusters and points kept in the steps",
+            "Final tree = complete hierarchy"
         ];
     }
 
@@ -3180,13 +3279,265 @@ class AppController{
         let legend = DOM("legendText");
 
         if(!DOM("showLegend").checked){
-            legend.innerHTML = "<li>Legenda nascosta</li>";
+            legend.innerHTML = "<li>Legend hidden</li>";
             return;
         }
 
         legend.innerHTML = this.getLegendItems()
             .map((item) => `<li>${item}</li>`)
             .join("");
+    }
+
+    getPseudocode(){
+        if(this.mode === "kmeans"){
+            return `let centroids = chooseInitialCentroids(data, k);
+let converged = false;
+
+while (!converged) {
+  const oldCentroids = centroids;
+
+  const clusters = assignPoints(data, centroids);
+  centroids = updateCentroids(clusters);
+
+  converged = hasConverged(oldCentroids, centroids);
+}`;
+        }
+
+        if(this.mode === "spectral"){
+            return `let W = buildAffinityMatrix(data, sigma);
+let L = normalizedLaplacian(W);
+
+let vectors = topEigenvectors(L, k);
+let embedding = buildEmbedding(vectors);
+
+return kMeans(embedding, k);`;
+        }
+
+        if(this.mode === "fuzzy"){
+            return `let membership = randomMembership(data, k);
+let centroids;
+
+for (let i = 0; i < maxIterations; i++) {
+  const oldMembership = membership;
+
+  centroids = updateWeightedCentroids(data, membership);
+  membership = updateMemberships(data, centroids);
+
+  if (hasConverged(oldMembership, membership)) {
+    break;
+  }
+}
+
+return strongestMembership(membership);`;
+        }
+
+        if(this.mode === "meanshift"){
+            return `let shifted = copyPoints(data);
+let stable = false;
+
+while (!stable) {
+  stable = true;
+
+  for (let i = 0; i < shifted.length; i++) {
+    let neighbors = pointsWithinBandwidth(shifted[i], shifted);
+    let newPoint = weightedMean(neighbors);
+
+    if (distance(shifted[i], newPoint) > tolerance) {
+      stable = false;
+    }
+
+    shifted[i] = newPoint;
+  }
+}
+
+let modes = mergeNearbyPoints(shifted);
+return assignPointsToModes(data, modes);`;
+        }
+
+        if(this.mode === "gmm"){
+            return `let components = initializeGaussians(data, k);
+let responsibilities;
+
+for (let i = 0; i < maxIterations; i++) {
+  const oldComponents = components;
+
+  responsibilities = estimateMemberships(data, components);
+  components = updateGaussians(data, responsibilities);
+
+  if (hasConverged(oldComponents, components)) {
+    break;
+  }
+}
+
+return mostLikelyComponent(responsibilities);`;
+        }
+
+        if(this.mode === "dbscan"){
+            return `let clusterId = 0;
+
+for (let point of data) {
+  if (point.visited) continue;
+
+  point.visited = true;
+  let neighbors = regionQuery(point, epsilon);
+
+  if (neighbors.length < minPts) {
+    markAsNoise(point);
+  } else {
+    clusterId++;
+    expandCluster(point, neighbors, clusterId, epsilon, minPts);
+  }
+}`;
+        }
+
+        if(this.mode === "hdbscan"){
+            return `let coreDistances = computeCoreDistances(data, minPts);
+let graph = mutualReachabilityGraph(data, coreDistances);
+
+let mst = minimumSpanningTree(graph);
+let condensedTree = condenseTree(mst, minClusterSize);
+
+let clusters = extractMostStableClusters(condensedTree);
+
+return clusters;`;
+        }
+
+        return `let clusters = data.map(point => [point]);
+let merges = [];
+
+while (clusters.length > 1) {
+  let pair = findClosestClusters(clusters);
+  let distance = clusterDistance(pair[0], pair[1]);
+
+  merges.push({ pair, distance });
+
+  clusters = mergePair(clusters, pair);
+}
+
+return buildDendrogram(merges);`;
+    }
+
+    escapeHtml(text){
+        return text
+            .replace(/&/g,"&amp;")
+            .replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;");
+    }
+
+    pseudocodeToken(type,value){
+        return `<span class="token-${type}">${this.escapeHtml(value)}</span>`;
+    }
+
+    highlightPseudocode(code){
+        let keywords = new Set([
+            "let","const","return","while","for","if","else","continue","break","of"
+        ]);
+        let constants = new Set(["true","false","null","undefined"]);
+        let html = "";
+        let i = 0;
+
+        while(i < code.length){
+            let char = code[i];
+
+            if(/\s/.test(char)){
+                html += char;
+                i++;
+                continue;
+            }
+
+            if(char === "\"" || char === "'"){
+                let quote = char;
+                let j = i + 1;
+
+                while(j < code.length && code[j] !== quote){
+                    if(code[j] === "\\"){
+                        j++;
+                    }
+
+                    j++;
+                }
+
+                html += this.pseudocodeToken("string",code.slice(i,Math.min(j + 1,code.length)));
+                i = Math.min(j + 1,code.length);
+                continue;
+            }
+
+            if(/[0-9]/.test(char)){
+                let j = i + 1;
+
+                while(j < code.length && /[0-9.]/.test(code[j])){
+                    j++;
+                }
+
+                html += this.pseudocodeToken("number",code.slice(i,j));
+                i = j;
+                continue;
+            }
+
+            if(/[A-Za-z_$]/.test(char)){
+                let j = i + 1;
+
+                while(j < code.length && /[A-Za-z0-9_$]/.test(code[j])){
+                    j++;
+                }
+
+                let word = code.slice(i,j);
+                let next = j;
+                let previous = i - 1;
+
+                while(next < code.length && /\s/.test(code[next])){
+                    next++;
+                }
+
+                while(previous >= 0 && /\s/.test(code[previous])){
+                    previous--;
+                }
+
+                if(keywords.has(word)){
+                    html += this.pseudocodeToken("keyword",word);
+                }else if(constants.has(word)){
+                    html += this.pseudocodeToken("number",word);
+                }else if(code[previous] === "."){
+                    html += this.pseudocodeToken("property",word);
+                }else if(code[next] === "("){
+                    html += this.pseudocodeToken("function",word);
+                }else{
+                    html += this.pseudocodeToken("variable",word);
+                }
+
+                i = j;
+                continue;
+            }
+
+            if("+-*/=%!<>|&".includes(char)){
+                let nextChar = code[i + 1] || "";
+                let value = char;
+
+                if("=><&|".includes(nextChar)){
+                    value += nextChar;
+                    i++;
+                }
+
+                html += this.pseudocodeToken("operator",value);
+                i++;
+                continue;
+            }
+
+            html += this.pseudocodeToken("punctuation",char);
+            i++;
+        }
+
+        return html;
+    }
+
+    updatePseudocode(){
+        let box = DOM("pseudocodeBox");
+
+        if(!box){
+            return;
+        }
+
+        box.innerHTML = this.highlightPseudocode(this.getPseudocode());
     }
 
     updateMetrics(){
@@ -3199,14 +3550,14 @@ class AppController{
         this.updateQualityLegend();
 
         if(!this.metricsReady || !this.currentResult){
-            panel.innerHTML = "<p class=\"hint\">Le metriche appariranno dopo Play o dopo l'ultimo Step.</p>";
+            panel.innerHTML = "<p class=\"hint\">Metrics will appear after Play or after the last Step.</p>";
             return;
         }
 
         let metrics = this.calculateMetrics();
 
         if(metrics.length === 0){
-            panel.innerHTML = "<p class=\"hint\">Metriche non disponibili per questo risultato.</p>";
+            panel.innerHTML = "<p class=\"hint\">Metrics are not available for this result.</p>";
             return;
         }
 
@@ -3234,17 +3585,17 @@ class AppController{
 
         if(this.mode === "gmm"){
             legend.innerHTML = `
-                <span>↑ alto = meglio</span>
-                <span>↓ basso = meglio</span>
-                <span>passa sopra una metrica per il tooltip</span>
+                <span>higher = better</span>
+                <span>lower = better</span>
+                <span>hover a metric to see the tooltip</span>
             `;
             return;
         }
 
         legend.innerHTML = `
-            <span><i class="good-dot"></i> verde buono</span>
-            <span><i class="medium-dot"></i> giallo medio</span>
-            <span><i class="bad-dot"></i> rosso debole</span>
+            <span><i class="good-dot"></i> green good</span>
+            <span><i class="medium-dot"></i> yellow medium</span>
+            <span><i class="bad-dot"></i> red weak</span>
         `;
     }
 
@@ -3286,9 +3637,9 @@ class AppController{
             let gmm = this.calculateGMMInfo(this.currentResult);
 
             return [
-                this.metric("Likelihood",this.formatNumber(gmm.logLikelihood,1),"plain","↑","Likelihood alta = meglio"),
-                this.metric("AIC",this.formatNumber(gmm.aic,0),"plain","↓","AIC basso = meglio"),
-                this.metric("BIC",this.formatNumber(gmm.bic,0),"plain","↓","BIC basso = meglio")
+                this.metric("Likelihood",this.formatNumber(gmm.logLikelihood,1),"plain","up","Higher likelihood is better"),
+                this.metric("AIC",this.formatNumber(gmm.aic,0),"plain","down","Lower AIC is better"),
+                this.metric("BIC",this.formatNumber(gmm.bic,0),"plain","down","Lower BIC is better")
             ];
         }
 
@@ -3326,7 +3677,7 @@ class AppController{
             }
 
             return [
-                this.metric("Numero modi",String(modeCount),quality)
+                this.metric("Mode count",String(modeCount),quality)
             ];
         }
 
@@ -3342,11 +3693,11 @@ class AppController{
 
     metric(name,value,quality,trend,title){
         let titles = {
-            good:"Molto buono",
-            medium:"Medio",
-            bad:"Scarso",
-            neutral:"Neutro",
-            plain:"Indicatore direzionale"
+            good:"Very good",
+            medium:"Medium",
+            bad:"Weak",
+            neutral:"Neutral",
+            plain:"Directional indicator"
         };
 
         return {
@@ -3693,7 +4044,7 @@ class AppController{
         }
 
         if(this.kmeans.init_centroid.length === 0){
-            this.setStatus("Genera prima i centroidi");
+            this.setStatus("Generate centroids first");
             return;
         }
 
@@ -3711,7 +4062,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`K-Means completato in ${result.iterations} iterazioni`);
+            this.setStatus(`K-Means completed in ${result.iterations} iterations`);
             this.render();
         }
     }
@@ -3721,8 +4072,8 @@ class AppController{
             return;
         }
 
-        let eps = this.readPositiveFloat("dbscanEpsilon","Epsilon non valido");
-        let minPts = this.readPositiveInt("dbscanMinPts","MinPTS non valido");
+        let eps = this.readPositiveFloat("dbscanEpsilon","Invalid epsilon");
+        let minPts = this.readPositiveInt("dbscanMinPts","Invalid MinPTS");
 
         if(!eps || !minPts){
             return;
@@ -3742,7 +4093,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`DBSCAN: ${result.clusters.length} cluster`);
+            this.setStatus(`DBSCAN: ${result.clusters.length} clusters`);
             this.render();
         }
     }
@@ -3752,20 +4103,20 @@ class AppController{
             return;
         }
 
-        let k = this.readPositiveInt("spectralK","K Spectral non valido");
-        let sigma = this.readPositiveFloat("spectralSigma","Sigma Spectral non valido");
+        let k = this.readPositiveInt("spectralK","Invalid Spectral K");
+        let sigma = this.readPositiveFloat("spectralSigma","Invalid Spectral sigma");
 
         if(!k || !sigma){
             return;
         }
 
         if(k > this.data.length){
-            this.setStatus("Spectral: K non puo superare il numero di punti");
+            this.setStatus("Spectral: K cannot exceed the number of points");
             return;
         }
 
         if(this.data.length > 180){
-            this.setStatus("Spectral: riduci i punti sotto 180 per evitare blocchi del browser");
+            this.setStatus("Spectral: keep points below 180 to avoid freezing the browser");
             return;
         }
 
@@ -3783,7 +4134,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`Spectral: ${result.clusters.length} cluster`);
+            this.setStatus(`Spectral: ${result.clusters.length} clusters`);
             this.render();
         }
     }
@@ -3793,21 +4144,21 @@ class AppController{
             return;
         }
 
-        let k = this.readPositiveInt("fuzzyClusters","Cluster Fuzzy non validi");
-        let m = this.readPositiveFloat("fuzzyM","Fuzziness non valida");
-        let iterations = this.readPositiveInt("fuzzyIterations","Iterazioni Fuzzy non valide");
+        let k = this.readPositiveInt("fuzzyClusters","Invalid Fuzzy clusters");
+        let m = this.readPositiveFloat("fuzzyM","Invalid fuzziness");
+        let iterations = this.readPositiveInt("fuzzyIterations","Invalid Fuzzy iterations");
 
         if(!k || !m || !iterations){
             return;
         }
 
         if(k > this.data.length){
-            this.setStatus("Fuzzy: i cluster non possono superare il numero di punti");
+            this.setStatus("Fuzzy: clusters cannot exceed the number of points");
             return;
         }
 
         if(m <= 1){
-            this.setStatus("Fuzzy: fuzziness deve essere maggiore di 1");
+            this.setStatus("Fuzzy: fuzziness must be greater than 1");
             return;
         }
 
@@ -3825,7 +4176,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`Fuzzy C-Means completato in ${result.iterations} iterazioni`);
+            this.setStatus(`Fuzzy C-Means completed in ${result.iterations} iterations`);
             this.render();
         }
     }
@@ -3835,8 +4186,8 @@ class AppController{
             return;
         }
 
-        let bandwidth = this.readPositiveFloat("meanShiftBandwidth","Bandwidth non valido");
-        let iterations = this.readPositiveInt("meanShiftIterations","Iterazioni Mean Shift non valide");
+        let bandwidth = this.readPositiveFloat("meanShiftBandwidth","Invalid bandwidth");
+        let iterations = this.readPositiveInt("meanShiftIterations","Invalid Mean Shift iterations");
 
         if(!bandwidth || !iterations){
             return;
@@ -3856,7 +4207,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`Mean Shift: ${result.modes.length} modi trovati`);
+            this.setStatus(`Mean Shift: ${result.modes.length} modes found`);
             this.render();
         }
     }
@@ -3866,15 +4217,15 @@ class AppController{
             return;
         }
 
-        let k = this.readPositiveInt("gmmComponents","Componenti GMM non valide");
-        let iterations = this.readPositiveInt("gmmIterations","Iterazioni GMM non valide");
+        let k = this.readPositiveInt("gmmComponents","Invalid GMM components");
+        let iterations = this.readPositiveInt("gmmIterations","Invalid GMM iterations");
 
         if(!k || !iterations){
             return;
         }
 
         if(k > this.data.length){
-            this.setStatus("GMM: le componenti non possono superare il numero di punti");
+            this.setStatus("GMM: components cannot exceed the number of points");
             return;
         }
 
@@ -3892,7 +4243,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`GMM completato in ${result.iterations} iterazioni`);
+            this.setStatus(`GMM completed in ${result.iterations} iterations`);
             this.render();
         }
     }
@@ -3902,15 +4253,15 @@ class AppController{
             return;
         }
 
-        let minPts = this.readPositiveInt("hdbscanMinPts","MinPTS HDBSCAN non valido");
-        let minClusterSize = this.readPositiveInt("hdbscanMinClusterSize","Min cluster size non valido");
+        let minPts = this.readPositiveInt("hdbscanMinPts","Invalid HDBSCAN MinPTS");
+        let minClusterSize = this.readPositiveInt("hdbscanMinClusterSize","Invalid min cluster size");
 
         if(!minPts || !minClusterSize){
             return;
         }
 
         if(this.data.length > 260){
-            this.setStatus("HDBSCAN: riduci i punti sotto 260 per evitare blocchi del browser");
+            this.setStatus("HDBSCAN: keep points below 260 to avoid freezing the browser");
             return;
         }
 
@@ -3928,7 +4279,7 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`HDBSCAN: ${result.clusters.length} cluster, ${result.noise.length} noise`);
+            this.setStatus(`HDBSCAN: ${result.clusters.length} clusters, ${result.noise.length} noise`);
             this.render();
         }
     }
@@ -3939,7 +4290,7 @@ class AppController{
         }
 
         if(this.data.length > 220){
-            this.setStatus("HCluster: riduci i punti sotto 220 per evitare blocchi del browser");
+            this.setStatus("HCluster: keep points below 220 to avoid freezing the browser");
             return;
         }
 
@@ -3960,14 +4311,14 @@ class AppController{
         }else{
             this.currentResult = result;
             this.metricsReady = true;
-            this.setStatus(`HCluster completato in ${result.iterations} iterazioni`);
+            this.setStatus(`HCluster completed in ${result.iterations} iterations`);
             this.render();
         }
     }
 
     showNextStep(){
         if(this.stepIndex >= this.currentSteps.length){
-            this.setStatus("Step completati");
+            this.setStatus("Steps completed");
             return;
         }
 
@@ -3980,7 +4331,7 @@ class AppController{
     }
 
     render(){
-        DOMsetValue("pointCounter",`Punti: ${this.data.length}`);
+        DOMsetValue("pointCounter",`Points: ${this.data.length}`);
         this.updateLegend();
 
         if(this.mode === "kmeans"){
@@ -4025,7 +4376,7 @@ class AppController{
             this.canvasHandler.drawMeanShift(
                 this.data,
                 this.currentResult,
-                DOM("showBoundaries").checked,
+                DOM("meanShiftDensityMap").checked,
                 DOM("showTrails").checked,
                 DOM("showDetails").checked
             );
@@ -4069,7 +4420,7 @@ class AppController{
 
     checkData(){
         if(this.data.length === 0){
-            this.setStatus("Inserisci prima dei punti");
+            this.setStatus("Add some points first");
             return false;
         }
 

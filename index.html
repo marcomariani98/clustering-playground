@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizzazione Clustering</title>
+  <title>Clustering Visualization</title>
   <style>
     :root {
       --bg: #edf2f7;
@@ -45,8 +45,9 @@
     .topbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 16px;
+      flex-wrap: wrap;
       padding: 14px 22px;
       background: rgba(255, 255, 255, 0.92);
       border-bottom: 1px solid var(--line);
@@ -380,6 +381,100 @@
       line-height: 1.35;
     }
 
+    .pseudocode-popover {
+      position: relative;
+    }
+
+    .pseudocode-popover summary {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      padding: 9px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgba(24, 32, 47, 0.06);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      list-style: none;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+
+    .pseudocode-popover summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .pseudocode-popover summary:hover,
+    .pseudocode-popover[open] summary {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .pseudocode-panel {
+      position: absolute;
+      top: calc(100% + 12px);
+      left: 0;
+      width: min(640px, calc(100vw - 44px));
+      max-height: min(70vh, 560px);
+      padding: 12px;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      background: #0f172a;
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+      z-index: 20;
+    }
+
+    .pseudocode {
+      margin: 0;
+      max-height: calc(min(70vh, 560px) - 26px);
+      overflow: auto;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: #0f172a;
+      color: #dbeafe;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.48;
+      white-space: pre-wrap;
+      tab-size: 2;
+    }
+
+    .pseudocode .token-keyword {
+      color: #c084fc;
+      font-weight: 800;
+    }
+
+    .pseudocode .token-function {
+      color: #7dd3fc;
+    }
+
+    .pseudocode .token-variable {
+      color: #bfdbfe;
+    }
+
+    .pseudocode .token-property {
+      color: #93c5fd;
+    }
+
+    .pseudocode .token-number {
+      color: #facc15;
+    }
+
+    .pseudocode .token-operator {
+      color: #fda4af;
+    }
+
+    .pseudocode .token-punctuation {
+      color: #94a3b8;
+    }
+
+    .pseudocode .token-string {
+      color: #86efac;
+    }
+
     #runKmeans,
     #stepKmeans,
     #runSpectral,
@@ -409,6 +504,18 @@
         border-top: 1px solid var(--line);
       }
 
+      .pseudocode-popover {
+        width: 100%;
+      }
+
+      .pseudocode-popover summary {
+        width: fit-content;
+      }
+
+      .pseudocode-panel {
+        left: 0;
+      }
+
       #clusterCanvas {
         height: 56vh;
       }
@@ -419,27 +526,33 @@
   <main class="app">
     <header class="topbar">
       <h1 class="title">Clustering</h1>
-      <nav class="tabs" aria-label="Algoritmi">
+      <nav class="tabs" aria-label="Algorithms">
         <label class="algorithm-picker">
-          Algoritmo
+          Algorithm
           <select id="algorithmSelect">
             <optgroup label="Base / Soft">
               <option value="kmeans">K-Means</option>
               <option value="fuzzy">Fuzzy C-Means</option>
               <option value="gmm">GMM</option>
             </optgroup>
-            <optgroup label="Densita">
+            <optgroup label="Density">
               <option value="dbscan">DBSCAN</option>
               <option value="hdbscan">HDBSCAN</option>
               <option value="meanshift">Mean Shift</option>
             </optgroup>
-            <optgroup label="Struttura">
+            <optgroup label="Structure">
               <option value="spectral">Spectral</option>
               <option value="hcluster">HCluster</option>
             </optgroup>
           </select>
         </label>
       </nav>
+      <details class="pseudocode-popover">
+        <summary>Pseudocode</summary>
+        <div class="pseudocode-panel">
+          <pre class="pseudocode" id="pseudocodeBox"></pre>
+        </div>
+      </details>
     </header>
 
     <section class="workspace">
@@ -449,9 +562,9 @@
 
       <aside class="sidebar">
         <section class="section">
-          <h2>Dati</h2>
+          <h2>Data</h2>
           <div class="controls">
-            <p class="status" id="pointCounter">Punti: 0</p>
+            <p class="status" id="pointCounter">Points: 0</p>
             <div class="control-grid">
               <label class="range-label">
                 Noise %
@@ -459,12 +572,12 @@
                 <input type="range" id="noiseCount" min="0" max="100" value="15">
               </label>
               <label class="range-label">
-                Cluster
+                Clusters
                 <span class="range-value" id="clusterCountValue">3</span>
                 <input type="range" id="clusterCount" min="1" max="8" value="3">
               </label>
               <label class="range-label">
-                Numero punti
+                Points
                 <span class="range-value" id="clusterSizeValue">50</span>
                 <input type="range" id="clusterSize" min="1" max="200" value="50">
               </label>
@@ -475,27 +588,27 @@
               </label>
             </div>
             <div class="row">
-              <button type="button" id="addNoisePoints">Punti casuali</button>
-              <button type="button" id="addRandomClusters" class="primary">Cluster casuali</button>
+              <button type="button" id="addNoisePoints">Random points</button>
+              <button type="button" id="addRandomClusters" class="primary">Random clusters</button>
             </div>
             <div class="row">
               <button type="button" id="addTwoMoons">Two moons</button>
-              <button type="button" id="addCircles">Cerchi</button>
-              <button type="button" id="addSpiral">Spirale</button>
+              <button type="button" id="addCircles">Circles</button>
+              <button type="button" id="addSpiral">Spiral</button>
             </div>
           </div>
         </section>
 
         <section class="section">
-          <h2>Azioni</h2>
+          <h2>Actions</h2>
           <div class="controls">
             <div class="row">
               <button type="button" class="primary" id="playAlgorithm">Play</button>
               <button type="button" id="stepAlgorithm">Step</button>
             </div>
             <div class="row">
-              <button type="button" id="clearResult">Pulisci risultato</button>
-              <button type="button" id="resetPoints" class="danger">Reset punti</button>
+              <button type="button" id="clearResult">Clear result</button>
+              <button type="button" id="resetPoints" class="danger">Reset points</button>
             </div>
           </div>
         </section>
@@ -508,19 +621,19 @@
               <input type="number" id="kValue" min="1" max="30" value="3">
             </label>
             <div class="row">
-              <button type="button" id="randomCentroids">Centroidi random</button>
+              <button type="button" id="randomCentroids">Random centroids</button>
               <button type="button" id="kppCentroids">KMeans++</button>
             </div>
             <div class="row">
               <button type="button" class="primary" id="runKmeans">Play</button>
               <button type="button" id="stepKmeans">Step</button>
-              <button type="button" class="danger" id="resetKmeans">Reset centroidi</button>
+              <button type="button" class="danger" id="resetKmeans">Reset centroids</button>
             </div>
           </div>
         </section>
 
         <section class="section panel hidden" data-panel="spectral">
-          <h2>Spectral semplificato</h2>
+          <h2>Simplified Spectral</h2>
           <div class="controls">
             <label>
               K
@@ -530,7 +643,7 @@
               Sigma
               <input type="number" id="spectralSigma" min="1" value="80">
             </label>
-            <p class="hint">Costruisce W con RBF, D, Laplaciana normalizzata L = I - D^-1/2 W D^-1/2, poi usa eigenvectors e K-Means.</p>
+            <p class="hint">Builds W with RBF, D, the normalized Laplacian L = I - D^-1/2 W D^-1/2, then uses eigenvectors and K-Means.</p>
             <div class="row">
               <button type="button" class="primary" id="runSpectral">Play</button>
               <button type="button" id="stepSpectral">Step</button>
@@ -542,7 +655,7 @@
           <h2>Fuzzy C-Means</h2>
           <div class="controls">
             <label>
-              Cluster
+              Clusters
               <input type="number" id="fuzzyClusters" min="1" max="20" value="3">
             </label>
             <label>
@@ -550,10 +663,10 @@
               <input type="number" id="fuzzyM" min="1.1" step="0.1" value="2">
             </label>
             <label>
-              Iterazioni
+              Iterations
               <input type="number" id="fuzzyIterations" min="1" max="100" value="40">
             </label>
-            <p class="hint">Ogni punto appartiene a tutti i cluster con pesi diversi. La trasparenza indica quanto e sicura l'appartenenza principale.</p>
+            <p class="hint">Each point belongs to every cluster with different weights. Transparency shows how strong the main membership is.</p>
             <div class="row">
               <button type="button" class="primary" id="runFuzzy">Play</button>
               <button type="button" id="stepFuzzy">Step</button>
@@ -569,10 +682,14 @@
               <input type="number" id="meanShiftBandwidth" min="1" value="70">
             </label>
             <label>
-              Iterazioni
+              Iterations
               <input type="number" id="meanShiftIterations" min="1" max="80" value="25">
             </label>
-            <p class="hint">Sposta ogni punto verso la media locale dei vicini entro bandwidth e fonde i modi finali vicini.</p>
+            <label class="inline-check">
+              <input type="checkbox" id="meanShiftDensityMap" checked>
+              Density map
+            </label>
+            <p class="hint">Moves each point toward the local mean of neighbors within the bandwidth and merges nearby final modes.</p>
             <div class="row">
               <button type="button" class="primary" id="runMeanShift">Play</button>
               <button type="button" id="stepMeanShift">Step</button>
@@ -584,14 +701,14 @@
           <h2>GMM</h2>
           <div class="controls">
             <label>
-              Componenti
+              Components
               <input type="number" id="gmmComponents" min="1" max="20" value="3">
             </label>
             <label>
-              Iterazioni
+              Iterations
               <input type="number" id="gmmIterations" min="1" max="100" value="35">
             </label>
-            <p class="hint">GMM usa EM: stima peso, media e covarianza di ogni gaussiana e assegna ogni punto alla componente piu probabile.</p>
+            <p class="hint">GMM uses EM: it estimates weight, mean, and covariance for each Gaussian and assigns each point to the most likely component.</p>
             <div class="row">
               <button type="button" class="primary" id="runGmm">Play</button>
               <button type="button" id="stepGmm">Step</button>
@@ -612,9 +729,9 @@
             </label>
             <label class="inline-check">
               <input type="checkbox" id="dbscanDrawEps">
-              Mostra range epsilon
+              Show epsilon range
             </label>
-            <p class="hint">Il range epsilon viene disegnato con cerchi grigi: piu punti cadono nel raggio, piu il bordo diventa marcato.</p>
+            <p class="hint">The epsilon range is drawn with gray circles: the more points fall inside the radius, the stronger the outline becomes.</p>
             <div class="row">
               <button type="button" class="primary" id="runDbscan">Play</button>
               <button type="button" id="stepDbscan">Step</button>
@@ -633,7 +750,7 @@
               Min cluster size
               <input type="number" id="hdbscanMinClusterSize" min="2" value="8">
             </label>
-            <p class="hint">Versione didattica: usa core distance, mutual reachability, MST e taglio gerarchico. I punti fuori dai cluster minimi diventano noise.</p>
+            <p class="hint">Educational version: it uses core distance, mutual reachability, MST, and a hierarchical cut. Points outside minimum clusters become noise.</p>
             <div class="row">
               <button type="button" class="primary" id="runHdbscan">Play</button>
               <button type="button" id="stepHdbscan">Step</button>
@@ -655,13 +772,13 @@
               </select>
             </label>
             <label>
-              Metrica
+              Metric
               <select id="hclusterMetric">
-                <option value="euclidean">Euclidea</option>
+                <option value="euclidean">Euclidean</option>
                 <option value="manhattan">Manhattan</option>
                 <option value="chebyshev">Chebyshev</option>
                 <option value="minkowski3">Minkowski p=3</option>
-                <option value="cosine">Coseno</option>
+                <option value="cosine">Cosine</option>
               </select>
             </label>
             <div class="row">
@@ -672,42 +789,42 @@
         </section>
 
         <section class="section">
-          <h2>Stato</h2>
-          <p class="status" id="statusText">Pronto</p>
+          <h2>Status</h2>
+          <p class="status" id="statusText">Ready</p>
           <div class="quality-legend" id="qualityLegend">
-            <span><i class="good-dot"></i> verde buono</span>
-            <span><i class="medium-dot"></i> giallo medio</span>
-            <span><i class="bad-dot"></i> rosso debole</span>
+            <span><i class="good-dot"></i> green good</span>
+            <span><i class="medium-dot"></i> yellow medium</span>
+            <span><i class="bad-dot"></i> red weak</span>
           </div>
           <div class="metrics" id="metricsPanel">
-            <p class="hint">Le metriche appariranno dopo Play o dopo l'ultimo Step.</p>
+            <p class="hint">Metrics will appear after Play or after the last Step.</p>
           </div>
         </section>
 
         <section class="section">
-          <h2>Visualizzazione</h2>
+          <h2>Visualization</h2>
           <div class="controls">
             <label class="inline-check">
               <input type="checkbox" id="showBoundaries">
-              Mostra boundaries
+              Show boundaries
             </label>
             <label class="inline-check">
               <input type="checkbox" id="showDetails" checked>
-              Mostra dettagli
+              Show details
             </label>
             <label class="inline-check">
               <input type="checkbox" id="showTrails" checked>
-              Mostra scie
+              Show trails
             </label>
             <label class="inline-check">
               <input type="checkbox" id="showLegend" checked>
-              Mostra legenda
+              Show legend
             </label>
           </div>
         </section>
 
         <section class="section">
-          <h2>Legenda</h2>
+          <h2>Legend</h2>
           <ul class="legend" id="legendText"></ul>
         </section>
 

@@ -1,31 +1,47 @@
 # Clustering Playground
 
-Playground interattivo per visualizzare e sperimentare algoritmi di clustering direttamente nel browser.
+Interactive playground to visualize and experiment with clustering algorithms directly in the browser.
 
-Realizzato con JavaScript vanilla e HTML5 Canvas.
-
----
-
-# Panoramica
-
-Questo progetto nasce come strumento didattico e visuale per esplorare il comportamento dei principali algoritmi di clustering su dataset sintetici generati in tempo reale.
-
-È un progetto personale sviluppato e migliorato progressivamente nel corso di circa 3 anni con alti e bassi, attraverso sperimentazione continua, studio degli algoritmi di clustering e iterazioni sull’esperienza visuale e didattica.
-
-L’applicazione permette di:
-
-- generare dataset interattivi
-- eseguire diversi algoritmi di clustering
-- visualizzare i passaggi intermedi
-- osservare boundary e regioni di decisione
-- confrontare approcci basati su centroidi, densità e struttura
-- capire intuitivamente come cambiano i risultati variando i parametri
-
-L’obiettivo principale è educativo e visuale, non la performance scientifica o l’uso production-ready.
+Built with vanilla JavaScript and HTML5 Canvas.
 
 ---
 
-## Visualizzazioni
+# Overview
+
+This project is an educational and visual tool for exploring how the main clustering algorithms behave on synthetic datasets generated in real time.
+
+The project intentionally avoids external libraries and keeps the implementation in vanilla JavaScript.
+
+It is a personal project developed and improved progressively over about 3 years, with ups and downs, through continuous experimentation, study of clustering algorithms, and many iterations on the visual and educational experience.
+
+The application lets you:
+
+- generate interactive datasets
+- run different clustering algorithms
+- visualize intermediate steps
+- observe boundaries and decision regions
+- compare centroid-based, density-based, and structure-based approaches
+- understand intuitively how results change when parameters change
+
+The main goal is educational and visual, not scientific performance or production-ready usage.
+
+---
+
+# Online Demo 🎮
+
+👉 [Try live demo](https://marcomariani98.github.io/clustering-playground/) 👈
+
+The project can be run directly in the browser through GitHub Pages.
+
+---
+
+## Visualizations
+
+### Mean Shift
+![MeanShift](imgs/meanshift.png)
+
+### HDBSCAN
+![Spectral](imgs/spectral.png)
 
 ### Spectral Clustering
 ![Spectral](imgs/spectral.png)
@@ -44,122 +60,115 @@ L’obiettivo principale è educativo e visuale, non la performance scientifica 
 
 ---
 
-# Funzionalità
+# Features
 
-## Generazione dataset
+## Dataset Generation
 
-Dataset disponibili:
+Available datasets:
 
-- Cluster casuali
-- Rumore casuale
+- Random clusters
+- Random noise
 - Two Moons
-- Cerchi concentrici
-- Spirale
+- Concentric circles
+- Spiral
 
-Parametri regolabili:
+Adjustable parameters:
 
-- numero di punti
+- number of points
 - spread
-- percentuale di noise
-- numero di cluster
+- noise percentage
+- number of clusters
 
 ---
 
-# Interazione Mouse
+# Mouse Interaction
 
-L’applicazione permette anche l’inserimento manuale dei centroidi iniziali.
+The application also supports manual insertion of initial centroids.
 
-## Controlli mouse
+## Mouse Controls
 
-- Click sinistro → aggiunge un centroide manualmente sul canvas
-- I centroidi manuali possono essere utilizzati dagli algoritmi basati su centroidi come K-Means
+- Left click -> adds a point on the canvas
+- Right click -> adds a manual centroid on the canvas in K-Means mode
+- Manual centroids can be used by centroid-based algorithms such as K-Means
 
-Questa modalità permette di osservare come la scelta iniziale dei centroidi influenzi il risultato finale del clustering.
+This mode lets you observe how the initial centroid choice affects the final clustering result.
 
 ---
 
-# Algoritmi implementati
+# Implemented Algorithms
 
-## Clustering classico / soft
+## Classic / Soft Clustering
 
 - K-Means
 - Fuzzy C-Means
 - Gaussian Mixture Models (GMM)
 
-## Clustering basato sulla densità
+## Density-Based Clustering
 
 - DBSCAN
 - HDBSCAN
 - Mean Shift
 
-## Clustering basato sulla struttura
+## Structure-Based Clustering
 
 - Spectral Clustering
 - Hierarchical Clustering
 
 ---
 
-# Visualizzazioni
+# Visualizations
 
-Il progetto include diverse visualizzazioni pensate per facilitare la comprensione degli algoritmi:
+The project includes several visualizations designed to make the algorithms easier to understand:
 
-- esecuzione step-by-step
-- boundaries stile Voronoi per K-Means
-- trail di convergenza per Mean Shift
-- raggi epsilon per DBSCAN
-- regioni di densità
-- ellissi gaussiane per GMM
+- step-by-step execution
+- Voronoi-style boundaries for K-Means
+- convergence trails for Mean Shift
+- density contour map for Mean Shift
+- epsilon ranges for DBSCAN
+- density regions
+- Gaussian ellipses for GMM
 - Minimum Spanning Tree
-- dendrogrammi per clustering gerarchico
-- trasparenza basata sulla membership nei metodi fuzzy
+- dendrograms for hierarchical clustering
+- membership-based transparency for fuzzy methods
 
 ---
 
-# Tecnologie utilizzate
+# Technologies
 
-- JavaScript Vanilla
+- Vanilla JavaScript
 - HTML5 Canvas
 - HTML/CSS
-- Nessun framework esterno
+- No external framework
 
 ---
 
-# Struttura del progetto
+# Project Structure
 
-L’attuale versione mantiene volutamente gran parte della logica in un singolo file JavaScript per rendere più semplice seguire il flusso completo del progetto durante l’esplorazione didattica.
+The current version intentionally keeps most of the logic in a single JavaScript file, so the full flow is easier to follow during educational exploration.
 
-Le componenti principali includono:
+The main components include:
 
-- generazione dataset
-- implementazione algoritmi
-- rendering canvas
-- controlli UI interattivi
-
----
-
-# Obiettivo didattico
-
-Questo progetto è pensato per aiutare a visualizzare concetti che spesso risultano difficili da comprendere tramite immagini statiche o teoria pura.
-
-L’obiettivo non è fornire implementazioni ottimizzate degli algoritmi, ma rendere osservabile e intuitivo il loro comportamento.
-
-Alcuni algoritmi sono volutamente semplificati o adattati per finalità visuali ed educative.
+- dataset generation
+- algorithm implementations
+- canvas rendering
+- interactive UI controls
 
 ---
 
-# Demo Online
+# Educational Goal
 
-👉 https://marcomariani98.github.io/Visualizzazione-Cluster/
+This project is meant to help visualize concepts that are often hard to understand through static images or pure theory.
 
-Il progetto può essere eseguito direttamente dal browser tramite GitHub Pages.
+The goal is not to provide optimized implementations of the algorithms, but to make their behavior observable and intuitive.
 
-
+Some algorithms are intentionally simplified or adapted for visual and educational purposes.
 
 ---
 
-# Avvio locale
+# Local Start
 
-È sufficiente aprire:
+Just open:
 
 ```html
 index.html
+```
