@@ -45,7 +45,7 @@ The project can be run directly in the browser through GitHub Pages.
 ![MeanShift](imgs/meanshift.png)
 
 ### HDBSCAN
-![Spectral](imgs/spectral.png)
+![Spectral](imgs/hdbscan.png)
 
 ### Spectral Clustering
 ![Spectral](imgs/spectral.png)
