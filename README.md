@@ -6,13 +6,21 @@ Built with vanilla JavaScript and HTML5 Canvas.
 
 ---
 
+# Online Demo 🎮
+
+👉 [Try live demo](https://marcomariani98.github.io/clustering-playground/) 👈
+
+The project can be run directly in the browser through GitHub Pages.
+
+---
+
 # Overview
 
 This project is an educational and visual tool for exploring how the main clustering algorithms behave on synthetic datasets generated in real time.
 
 The project intentionally avoids external libraries and keeps the implementation in vanilla JavaScript.
 
-It is a personal project developed and improved progressively over about 3 years, with ups and downs, through continuous experimentation, study of clustering algorithms, and many iterations on the visual and educational experience.
+It is a personal project developed and improved progressively over about 3 years, with ups and downs, through continuous experimentation, study of clustering algorithms, and many iterations on the visual and educational experience. The project originally started as a separate university exam project built with Node.js. Later, I revisited the idea and tried to turn it into a single-file version, which is how the first commits of this repository were made. After about a week, I split the logic again into smaller modules to improve readability, maintainability, and the internal structure, bringing it closer to the original spirit of the project, while still preserving the initial philosophy of keeping it dependency-free, without Node.js or external libraries. In a way, the circle is now complete.
 
 The application lets you:
 
@@ -32,14 +40,6 @@ The application lets you:
 - understand intuitively how results change when parameters change
 
 The main goal is educational and visual, not scientific performance or production-ready usage.
-
----
-
-# Online Demo 🎮
-
-👉 [Try live demo](https://marcomariani98.github.io/clustering-playground/) 👈
-
-The project can be run directly in the browser through GitHub Pages.
 
 ---
 
