@@ -14,6 +14,7 @@ class AppState{
         this.metricsReady = false;
         this.autoTimer = null;
         this.autoDelay = 0;
+        this.safeMode = true;
     }
 
     setMode(mode){

@@ -129,16 +129,26 @@ class SpectralClustering{
         let options = {
             unnormalized:{label:"Unnormalized Laplacian: L = D - W",shortLabel:"unnormalized L"},
             symmetric:{label:"Symmetric normalized Laplacian: L = I - D^-1/2 W D^-1/2",shortLabel:"symmetric L"},
-            randomwalk:{label:"Random walk Laplacian: L = I - D^-1 W",shortLabel:"random walk L"}
+            randomwalk:{label:"Random walk Laplacian: L = I - D^-1 W",shortLabel:"random walk L"},
+            signless:{label:"Signless Laplacian: Q = D + W",shortLabel:"signless Q"},
+            bethe:{label:"Bethe Hessian: H_β = (β²-1)I + D - βW",shortLabel:"Bethe Hessian"}
         };
 
         return options[type] || options.symmetric;
     }
 
-    /* Build the selected graph Laplacian so the same points can be compared three ways. */
+    /* Bethe Hessian uses β ≈ √(mean degree). Set globally so a single eigen pass uses it. */
+    calculateBetheBeta(degree){
+        if(!degree || degree.length === 0) return 1;
+        let mean = degree.reduce((sum,value) => sum + value,0) / degree.length;
+        return Math.max(1,Math.sqrt(Math.max(mean,0.0001)));
+    }
+
+    /* Build the selected graph Laplacian so the same points can be compared five ways. */
     calculateLaplacian(affinity,{type = "symmetric"} = {}){
         let degree = this.calculateDegree(affinity);
         let normalizedAffinity = type === "symmetric" ? this.calculateNormalizedAffinity(affinity) : null;
+        let beta = type === "bethe" ? this.calculateBetheBeta(degree) : 1;
         let laplacian = [];
 
         for(let i = 0;i < affinity.length;i++){
@@ -150,6 +160,13 @@ class SpectralClustering{
                 }else if(type === "randomwalk"){
                     let value = affinity[i][j] / Math.max(degree[i],0.0001);
                     laplacian[i][j] = (i === j ? 1 : 0) - value;
+                }else if(type === "signless"){
+                    // Q = D + W: diagonale = grado, fuori diagonale = +W (non -W).
+                    laplacian[i][j] = (i === j ? degree[i] : 0) + affinity[i][j];
+                }else if(type === "bethe"){
+                    // H_β = (β² - 1) I + D - β W.
+                    let diag = i === j ? (beta * beta - 1) + degree[i] : 0;
+                    laplacian[i][j] = diag - beta * affinity[i][j];
                 }else{
                     let value = normalizedAffinity[i][j];
                     laplacian[i][j] = (i === j ? 1 : 0) - value;
@@ -167,9 +184,13 @@ class SpectralClustering{
         Lrw is not symmetric, therefore the symmetric deflation used below cannot
         safely run on I - Lrw. Lrw is similar to Lsym, so for random walk we solve
         the symmetric equivalent here and transform its eigenvectors afterwards.
+
+        Signless e Bethe usano la stessa idea: matrice non in [0,1] di base, quindi
+        scaliamo per max-grado per stare in un range stabile per la power iteration.
     */
     calculateEmbeddingOperator(laplacian,degree,type){
-        let scale = type === "unnormalized"
+        let needsScale = type === "unnormalized" || type === "signless" || type === "bethe";
+        let scale = needsScale
             ? Math.max(1,2 * Math.max(...degree))
             : 1;
         let matrix = [];

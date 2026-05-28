@@ -25,7 +25,7 @@ It is a personal project developed and improved progressively over about 3 years
 The application lets you:
 
 - generate interactive datasets
-- paint custom datasets with the brush tool
+- paint custom datasets with the brush tool (1:1 mapping: slider value = points spawned per stroke tick)
 - export and reload point clouds as JSON
 - run different clustering algorithms
 - execute algorithms instantly
@@ -34,7 +34,9 @@ The application lets you:
 - stop an active animation at any time
 - control the animation speed
 - observe boundaries and decision regions
-- inspect metrics, convergence curves, and algorithm-specific previews
+- inspect metrics, convergence curves, and a model comparison table for GMM
+- read the current algorithm's worst-case complexity at a glance (big-O badge in the top bar)
+- opt out of the per-algorithm safety guard when you want to push the dataset further
 - switch between light and dark themes
 - compare centroid-based, density-based, and structure-based approaches
 - understand intuitively how results change when parameters change
@@ -89,7 +91,7 @@ Adjustable parameters:
 
 ## Custom Datasets
 
-Besides the standard generators, **Brush mode** lets you paint points directly on the canvas by dragging the mouse. Its density, spread, and jitter follow the same `Points`, `Spread`, and `Noise %` controls used by generated datasets.
+Besides the standard generators, **Brush mode** lets you paint points directly on the canvas by dragging the mouse. The `Points` slider maps **1:1** to the number of points spawned per tick (slider = 1 paints one point at a time, slider = 50 paints 50, up to 200). The `Spread` controls the brush radius and `Noise %` adds extra jitter — same controls as the generators, applied directly to the stroke.
 
 The `Save / Load` tab exports the current point cloud to JSON and reloads it later, so hand-drawn datasets can be reused.
 
@@ -105,6 +107,19 @@ The playground includes four main execution modes designed to make the algorithm
 - **Execute ⚡**: runs the selected algorithm immediately and shows the final result.
 
 A speed slider controls how fast the animated execution runs during Play mode.
+
+---
+
+# Top Bar
+
+The top bar always shows three pieces of context next to the algorithm picker:
+
+- **Status pill** — a live diagnostic line (`Ready`, `Points: 42`, `K-Means completed in 12 iterations`, …). Replaces the old `Status` section in the sidebar; the sidebar block is now called **Metrics**.
+- **Complexity badge** — the worst-case time complexity for the selected algorithm, color-coded by severity:
+  - 🟦 light: `O(n·k·i)` for K-Means, Fuzzy C-Means, GMM
+  - 🟨 medium: `O(n²)` / `O(n²·i)` for DBSCAN, HDBSCAN, Mean Shift
+  - 🟥 heavy: `O(n³)` for Spectral and Hierarchical Clustering
+- **Safe mode toggle** — on by default. Caps how many points each algorithm is allowed to consume before the browser freezes (e.g. Spectral 180, HCluster 30, K-Means 2000). Turn it off to push past the limits at your own risk.
 
 ---
 
@@ -126,20 +141,29 @@ This mode lets you observe how the initial centroid choice affects the final clu
 
 ## Classic / Soft Clustering
 
-- K-Means
-- Fuzzy C-Means
-- Gaussian Mixture Models (GMM)
+- **K-Means** — with four selectable centroid-initialization strategies:
+  - **Random (canvas)** — uniform positions in the canvas
+  - **Forgy (1965)** — k points sampled uniformly from the dataset
+  - **K-Means++ (Arthur & Vassilvitskii 2007)** — probabilistic D² weighted sampling
+  - **Farthest-First (Gonzalez 1985)** — deterministic max-min distance (the original "kpp" button, now correctly labeled)
+- **Fuzzy C-Means**
+- **Gaussian Mixture Models (GMM)** — with model-comparison table across reruns (AIC, BIC, agreement verdict), traffic-light coloring on Fit / point, AIC and BIC
 
 ## Density-Based Clustering
 
-- DBSCAN
+- DBSCAN — epsilon parameter changes clear the previous result so the drawn radii always match the input value
 - HDBSCAN
 - Mean Shift
 
 ## Structure-Based Clustering
 
-- Spectral Clustering
-- Hierarchical Clustering
+- **Spectral Clustering** — five selectable graph Laplacians:
+  - **Symmetric normalized** `L_sym = I − D^−1/2 W D^−1/2` (Ng-Jordan-Weiss 2002, default)
+  - **Unnormalized** `L = D − W` (textbook combinatorial)
+  - **Random walk** `L_rw = I − D^−1 W` (Shi-Malik 2000, normalized cut)
+  - **Signless** `Q = D + W` (bipartiteness detection; educational)
+  - **Bethe Hessian** `H_β = (β²−1)I + D − βW` (Saade-Krzakala-Zdeborová 2014, with β ≈ √(mean degree))
+- **Hierarchical Clustering** — the dendrogram now grows directly on the main canvas as merges happen, instead of living in a sidebar preview. A yellow marker highlights the most recent merge at every step.
 
 ---
 
@@ -153,20 +177,20 @@ The project includes several visualizations designed to make the algorithms easi
 - instant Execute mode
 - stoppable algorithm animations
 - adjustable animation speed
-- quality metrics with colored indicators and explanatory hints
+- traffic-light quality metrics with explanatory hints — every card explains *why* it is good or bad, and the threshold that flipped its color
 - real-time convergence sparklines for K-Means, GMM, and Fuzzy C-Means
 - Voronoi-style boundaries for K-Means
+- four selectable K-Means centroid initializations (Random, Forgy, K-Means++, Farthest-First)
 - convergence trails for Mean Shift
 - density contour map for Mean Shift
-- epsilon ranges for DBSCAN
+- epsilon ranges for DBSCAN, with the actual `eps=N` value drawn next to the visited point and stale circles cleared automatically when the parameter changes
 - density regions
 - Gaussian ellipses for GMM
-- GMM confidence metrics and AIC/BIC comparison across component counts
-- selectable graph Laplacians for Spectral Clustering
+- GMM confidence metrics, AIC/BIC ranking table, and verdict line ("Agreed: k=N wins on both" when AIC and BIC concur)
+- five selectable graph Laplacians for Spectral Clustering (Symmetric, Unnormalized, Random walk, Signless, Bethe Hessian)
 - sidebar affinity heatmap for Spectral Clustering
 - Minimum Spanning Tree
-- dendrograms for hierarchical clustering
-- compact sidebar dendrogram for Hierarchical Clustering
+- animated dendrogram drawn on the main canvas during Hierarchical Clustering, with a marker on the latest merge
 - membership-based transparency for fuzzy methods
 
 ---
@@ -212,17 +236,19 @@ flowchart LR
     Shared -.-> Render
 ```
 
-`index.html` contains the controls, sidebar panels, and canvas. `main.js` coordinates user actions, asks the selected algorithm for results or animation steps, and passes those results to the matching renderer. `AppState` holds the live session state; `Metrics` computes score cards and sparkline data; `Primitives` centralizes shared canvas drawing while each renderer is responsible for the visual language of one algorithm.
+`index.html` contains the controls, sidebar panels, and canvas. `main.js` coordinates user actions, asks the selected algorithm for results or animation steps, and passes those results to the matching renderer. `AppState` holds the live session state; `Metrics` computes score cards, the GMM model-comparison ranking, and sparkline data; `Primitives` centralizes shared canvas drawing while each renderer is responsible for the visual language of one algorithm.
 
-The sidebar is part of the learning flow: it keeps metrics visible, plots convergence for iterative algorithms, shows the Spectral affinity heatmap, and presents a compact HCluster dendrogram while the main canvas stays focused on the clustering result.
+The top bar keeps three things always visible: the live diagnostic status pill, the current algorithm's big-O complexity badge, and the safe-mode toggle that enforces per-algorithm point limits. The sidebar is the learning panel: it keeps metric cards visible, plots convergence for iterative algorithms, and shows the Spectral affinity heatmap. HCluster's dendrogram now lives directly on the main canvas (no more sidebar preview) and grows in step with the algorithm.
 
 ## Design Patterns
 
 `main.js` uses a small **Strategy** registry: every clustering mode exposes a `run` action and a `draw` action, so the application can switch algorithms without putting all behavior in one controller branch.
 
-The `run` actions also act like lightweight **Commands**: buttons such as Play, Step and Execute invoke the selected behavior through the same entry point, while each algorithm remains focused on its own calculations.
+The `run` actions also act like lightweight **Commands**: buttons such as Play, Step and Execute invoke the selected behavior through the same entry point, while each algorithm remains focused on its own calculations. A single `safeRun(algorithm)` guard fronts every command and refuses to start when the dataset would freeze the browser — the per-algorithm thresholds are documented as a complexity table right above the function.
 
 The render layer follows a simple shared-base approach: `Primitives` provides reusable canvas operations and theme-aware colors, while dedicated renderer classes compose them for K-Means, DBSCAN, GMM, Spectral, and the other algorithms.
+
+`Metrics` is an **IIFE module** that exposes only `computeMetrics` and `convergenceSeries` — every helper (silhouette, Davies-Bouldin, GMM responsibilities, cross-run AIC/BIC ranking, convergence quality scoring) stays private inside it.
 
 ---
 

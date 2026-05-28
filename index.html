@@ -76,6 +76,160 @@
       z-index: 2;
     }
 
+    .topbar-status {
+      margin: 0 0 0 auto;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 700;
+      line-height: 1.2;
+      min-width: 200px;
+      max-width: 360px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: border-color 0.2s, color 0.2s, background-color 0.2s;
+    }
+
+    .topbar-status::before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 8px;
+      vertical-align: middle;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .safe-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+      user-select: none;
+    }
+
+    .safe-toggle:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .safe-toggle input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .safe-toggle-knob {
+      position: relative;
+      width: 30px;
+      height: 16px;
+      border-radius: 999px;
+      background: var(--muted);
+      transition: background-color 0.2s;
+      flex-shrink: 0;
+    }
+
+    .safe-toggle-knob::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+
+    .safe-toggle input:checked ~ .safe-toggle-knob {
+      background: var(--accent);
+    }
+
+    .safe-toggle input:checked ~ .safe-toggle-knob::after {
+      transform: translateX(14px);
+    }
+
+    .safe-toggle input:focus-visible ~ .safe-toggle-knob {
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .safe-toggle-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    .safe-toggle-label {
+      font-weight: 800;
+      font-size: 12.5px;
+      color: var(--ink);
+    }
+
+    .safe-toggle-hint {
+      font-size: 10.5px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .complexity-badge {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      line-height: 1.1;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .complexity-badge-label {
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .complexity-badge-value {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .complexity-badge[data-severity="heavy"] {
+      border-color: rgba(220, 38, 38, 0.4);
+      background: rgba(220, 38, 38, 0.08);
+    }
+    .complexity-badge[data-severity="heavy"] .complexity-badge-value {
+      color: var(--danger);
+    }
+    .complexity-badge[data-severity="medium"] {
+      border-color: rgba(234, 179, 8, 0.5);
+      background: rgba(234, 179, 8, 0.08);
+    }
+    .complexity-badge[data-severity="medium"] .complexity-badge-value {
+      color: #ca8a04;
+    }
+    [data-theme="dark"] .complexity-badge[data-severity="medium"] .complexity-badge-value {
+      color: #facc15;
+    }
+
     .title {
       margin: 0;
       font-size: 19px;
@@ -294,9 +448,21 @@
     .choice-option {
       display: flex;
       flex-direction: row;
-      align-items: baseline;
-      gap: 7px;
+      align-items: flex-start;
+      gap: 8px;
       color: var(--ink);
+    }
+
+    .choice-option input[type="radio"] {
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .choice-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.35;
       font-size: 13px;
     }
 
@@ -429,6 +595,107 @@
 
     .gmm-model-grid .metric-item {
       background: var(--panel-strong);
+    }
+
+    .gmm-comparison-table {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      font-size: 12px;
+    }
+
+    .gmm-comparison-header,
+    .gmm-comparison-row {
+      display: grid;
+      grid-template-columns: 56px 1fr 1fr 22px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .gmm-comparison-header {
+      color: var(--muted);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed var(--line);
+    }
+
+    .gmm-comparison-row {
+      padding: 4px 0;
+      color: var(--ink);
+    }
+
+    .gmm-comparison-row.is-current {
+      font-weight: 900;
+      color: var(--accent);
+    }
+
+    .gmm-comparison-row.is-best-bic,
+    .gmm-comparison-row.is-best-aic {
+      background: linear-gradient(90deg, transparent, var(--accent-soft), transparent);
+      border-radius: 6px;
+      padding: 4px 6px;
+    }
+
+    .gmm-comparison-k {
+      font-weight: 800;
+    }
+
+    .gmm-comparison-bar {
+      position: relative;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--panel-strong);
+      overflow: hidden;
+    }
+
+    .gmm-comparison-bar-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      background: var(--muted);
+      border-radius: 999px;
+    }
+
+    .gmm-comparison-row.is-current .gmm-comparison-bar-fill {
+      background: var(--accent);
+    }
+
+    .gmm-comparison-bar-value {
+      position: absolute;
+      top: -1px;
+      right: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 8px;
+    }
+
+    .gmm-comparison-badge {
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .gmm-comparison-verdict {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      margin-top: 4px;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .gmm-comparison-verdict strong {
+      color: var(--ink);
     }
 
     @media (max-width: 420px) {
@@ -841,6 +1108,19 @@
           <pre class="pseudocode" id="pseudocodeBox"></pre>
         </div>
       </details>
+      <p class="topbar-status" id="statusText" role="status" aria-live="polite">Ready</p>
+      <span class="complexity-badge" id="complexityBadge" title="Worst-case time complexity for the selected algorithm">
+        <span class="complexity-badge-label">Complexity</span>
+        <span class="complexity-badge-value" id="complexityValue">O(n·k)</span>
+      </span>
+      <label class="safe-toggle" title="Block runs above per-algorithm point limits">
+        <input type="checkbox" id="safemode" checked>
+        <span class="safe-toggle-knob" aria-hidden="true"></span>
+        <span class="safe-toggle-text">
+          <span class="safe-toggle-label">Safe mode</span>
+          <span class="safe-toggle-hint">per-algorithm point limits</span>
+        </span>
+      </label>
       <button type="button" id="themeToggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
     </header>
 
@@ -937,8 +1217,12 @@
             </label>
             <p class="parameter-help">Starting centroids can change the result.</p>
             <div class="row">
-              <button type="button" id="randomCentroids">Random centroids</button>
-              <button type="button" id="kppCentroids">KMeans++</button>
+              <button type="button" id="randomCentroids" title="Random positions in the canvas (may not overlap data)">Random (canvas)</button>
+              <button type="button" id="forgyCentroids" title="Forgy 1965: k random points picked from the dataset">Forgy</button>
+            </div>
+            <div class="row">
+              <button type="button" id="kppCentroids" title="Arthur-Vassilvitskii 2007: probabilistic D² sampling">K-Means++</button>
+              <button type="button" id="farthestFirstCentroids" title="Gonzalez 1985: deterministic max-min distance">Farthest-First</button>
             </div>
             <div class="row">
               <button type="button" class="primary" id="runKmeans">Play ▶️</button>
@@ -964,20 +1248,40 @@
             <fieldset class="choice-group">
               <legend>Laplacian type</legend>
               <label class="choice-option">
-                <input type="radio" name="spectralLaplacian" value="unnormalized">
-                Unnormalized <code>L = D - W</code>
-              </label>
-                  <span class="parameter-help">Keeps raw graph density.</span>
-              <label class="choice-option">
                 <input type="radio" name="spectralLaplacian" value="symmetric" checked>
-                Symmetric normalized <code>L = I - D^-1/2 W D^-1/2</code>
+                <span class="choice-text">
+                  <strong>Symmetric normalized</strong> <code>L<sub>sym</sub> = I − D<sup>−1/2</sup> W D<sup>−1/2</sup></code>
+                  <span class="parameter-help">Standard choice (Ng-Jordan-Weiss 2002). Balances node degrees, recommended default.</span>
+                </span>
               </label>
-                  <span class="parameter-help">Balances node degrees.</span>
+              <label class="choice-option">
+                <input type="radio" name="spectralLaplacian" value="unnormalized">
+                <span class="choice-text">
+                  <strong>Unnormalized</strong> <code>L = D − W</code>
+                  <span class="parameter-help">Textbook combinatorial Laplacian. Sensitive to dense neighborhoods.</span>
+                </span>
+              </label>
               <label class="choice-option">
                 <input type="radio" name="spectralLaplacian" value="randomwalk">
-                Random walk <code>L = I - D^-1 W</code>
+                <span class="choice-text">
+                  <strong>Random walk</strong> <code>L<sub>rw</sub> = I − D<sup>−1</sup> W</code>
+                  <span class="parameter-help">Shi-Malik 2000 (normalized cut). Reads the graph as a Markov chain.</span>
+                </span>
               </label>
-                  <span class="parameter-help">Uses graph transition behavior.</span>
+              <label class="choice-option">
+                <input type="radio" name="spectralLaplacian" value="signless">
+                <span class="choice-text">
+                  <strong>Signless</strong> <code>Q = D + W</code>
+                  <span class="parameter-help">Used for bipartiteness detection. Educational; not great for k-way clustering.</span>
+                </span>
+              </label>
+              <label class="choice-option">
+                <input type="radio" name="spectralLaplacian" value="bethe">
+                <span class="choice-text">
+                  <strong>Bethe Hessian</strong> <code>H<sub>β</sub> = (β²−1)I + D − βW</code>
+                  <span class="parameter-help">Saade-Krzakala-Zdeborová 2014. β ≈ √(mean degree). Strong on sparse graphs.</span>
+                </span>
+              </label>
             </fieldset>
             <p class="hint">Builds W with RBF and lets you compare how each graph Laplacian shapes the spectral embedding before K-Means.</p>
             <div class="row">
@@ -1136,16 +1440,12 @@
               <button type="button" class="primary" id="runHcluster">Play ▶️</button>
               <button type="button" id="stepHcluster">Step ⏭️</button>
             </div>
-            <div class="preview-wrap hidden" id="hclusterPreviewWrap">
-              <span class="preview-label">Dendrogram</span>
-              <canvas id="hclusterPreview" width="300" height="200"></canvas>
-            </div>
+            <p class="parameter-help">The dendrogram now grows directly on the canvas as merges happen.</p>
           </div>
         </section>
 
         <section class="section">
-          <h2>Status</h2>
-          <p class="status" id="statusText">Ready</p>
+          <h2>Metrics 📐</h2>
           <div class="quality-legend" id="qualityLegend">
             <span><i class="good-dot"></i> green good</span>
             <span><i class="medium-dot"></i> yellow medium</span>

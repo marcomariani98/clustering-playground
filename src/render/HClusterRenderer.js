@@ -26,9 +26,10 @@ class HClusterRenderer{
 
         this._drawLabels(result, activeClusters);
 
-        // Quando tutto e' collassato in un unico cluster e c'erano partenze
-        // multiple, mostriamo il dendrogramma pieno in un pannello a parte.
-        if(result.currentClusters && result.currentClusters.length === 1 && result.initClusters > 1){
+        // Il dendrogramma cresce sul canvas insieme all'algoritmo: viene disegnato
+        // a ogni step come anteprima della foresta corrente -> albero finale.
+        // Niente piu' gating sul collapse: la progressione e' parte del racconto.
+        if(result.allClusters && result.initClusters > 1){
             this._drawTree(result);
         }
 
@@ -102,58 +103,79 @@ class HClusterRenderer{
         p.drawInfo(text);
     }
 
-    // Dendrogramma "a gomito" classico, layout right-to-left dalle foglie alla radice.
-    // Le foglie sono distribuite uniformemente in verticale, i nodi interni
-    // si piazzano alla x proporzionale al loro livello nell'albero.
+    // Dendrogramma multi-root che cresce a ogni step. Quando la foresta ha
+    // ancora N alberi, ciascuno occupa una fetta verticale del pannello;
+    // man mano che i merge collassano i sotto-alberi diventano un unico tree.
     _drawTree(result){
         let p = this.p;
-        let root = result.currentClusters[0];
-        let clusterMap = new Map(result.allClusters.map((cluster) => [cluster.id, cluster]));
-        let leaves = [];
+        let roots = result.currentClusters || [];
+        if(roots.length === 0) return;
 
-        let collectLeaves = (cluster) => {
+        let clusterMap = new Map(result.allClusters.map((cluster) => [cluster.id, cluster]));
+
+        let collectLeaves = (cluster, into) => {
             if(!cluster.tree || cluster.tree.length === 0){
-                leaves.push(cluster);
+                into.push(cluster);
                 return;
             }
             for(let childId of cluster.tree){
                 let child = clusterMap.get(childId);
-                if(child) collectLeaves(child);
+                if(child) collectLeaves(child, into);
             }
         };
 
-        collectLeaves(root);
+        let rootBundles = roots.map((root) => {
+            let leaves = [];
+            collectLeaves(root, leaves);
+            return { root: root, leaves: leaves };
+        });
 
-        let panelWidth = Math.min(420, Math.max(280, p.width * 0.36));
+        let totalLeaves = rootBundles.reduce((sum, bundle) => sum + bundle.leaves.length, 0);
+        if(totalLeaves === 0) return;
+
+        // Pannello compatto in alto a destra: lascia respiro ai bubble dei cluster.
+        let panelWidth = Math.min(420, Math.max(300, p.width * 0.34));
+        let panelHeight = Math.max(260, Math.min(p.height - 76, 80 + totalLeaves * 12));
         let panel = {
             x: p.width - panelWidth - 18,
             y: 44,
             width: panelWidth,
-            height: Math.max(260, p.height - 76)
+            height: panelHeight
         };
 
         let left = panel.x + 28;
         let right = panel.x + panel.width - 54;
         let top = panel.y + 46;
         let bottom = panel.y + panel.height - 22;
-        let leafGap = leaves.length > 1 ? (bottom - top) / (leaves.length - 1) : 0;
-        let rootLevel = Math.max(1, root.level || 1);
-        let layout = new Map();
+        let leafGap = totalLeaves > 1 ? (bottom - top) / (totalLeaves - 1) : 0;
 
-        for(let [i, leaf] of leaves.entries()){
-            layout.set(leaf.id, { x: right, y: top + i * leafGap });
+        // Scala x per livello: piu' avanti siamo, piu' nodi profondi esistono.
+        // Usiamo il max livello osservato nella foresta corrente.
+        let maxLevel = Math.max(1, ...result.allClusters.map((c) => c.level || 0));
+        let layout = new Map();
+        let leafIndex = 0;
+
+        for(let bundle of rootBundles){
+            for(let leaf of bundle.leaves){
+                layout.set(leaf.id, { x: right, y: top + leafIndex * leafGap });
+                leafIndex++;
+            }
         }
 
         let place = (cluster) => {
             if(layout.has(cluster.id)) return layout.get(cluster.id);
 
-            let children = cluster.tree
+            let children = (cluster.tree || [])
                 .map((childId) => clusterMap.get(childId))
                 .filter(Boolean);
 
+            if(children.length === 0){
+                return layout.get(cluster.id) || { x: right, y: top };
+            }
+
             let childPositions = children.map((child) => place(child));
             let y = childPositions.reduce((sum, point) => sum + point.y, 0) / childPositions.length;
-            let levelRatio = (cluster.level || 0) / rootLevel;
+            let levelRatio = (cluster.level || 0) / maxLevel;
             let x = right - levelRatio * (right - left);
             let position = { x: x, y: y };
 
@@ -161,10 +183,13 @@ class HClusterRenderer{
             return position;
         };
 
-        place(root);
+        for(let bundle of rootBundles){
+            place(bundle.root);
+        }
 
         let ink = p.glyphColor();
         let isDark = p.isDarkTheme();
+
         p.ctx.save();
         p.ctx.fillStyle = p.panelBg(0.92);
         p.ctx.strokeStyle = isDark ? "rgba(148,163,184,0.4)" : "rgba(148,163,184,0.7)";
@@ -175,11 +200,13 @@ class HClusterRenderer{
 
         p.ctx.fillStyle = ink;
         p.ctx.font = "800 13px Arial";
-        p.ctx.fillText("HCluster hierarchy", panel.x + 16, panel.y + 24);
+        let progress = roots.length === 1
+            ? "complete"
+            : `${roots.length} sub-trees · merge ${result.iterations || 0}`;
+        p.ctx.fillText(`HCluster hierarchy — ${progress}`, panel.x + 16, panel.y + 24);
 
         for(let cluster of result.allClusters){
             if(!cluster.tree || cluster.tree.length !== 2 || !layout.has(cluster.id)) continue;
-
             let parent = layout.get(cluster.id);
 
             for(let childId of cluster.tree){
@@ -198,7 +225,20 @@ class HClusterRenderer{
             }
         }
 
-        let leafFont = leaves.length > 35 ? "8px Arial" : "10px Arial";
+        // Marker per l'ultimo merge appena fatto: highlight della congiunzione
+        // cosi' l'utente vede esattamente quale pair e' stato unito allo step.
+        if(result.merged && result.merged.length === 2){
+            let last = result.allClusters[result.allClusters.length - 1];
+            if(last && layout.has(last.id)){
+                let parent = layout.get(last.id);
+                p.ctx.beginPath();
+                p.ctx.arc(parent.x, parent.y, 5, 0, 2 * Math.PI, false);
+                p.ctx.fillStyle = isDark ? "#facc15" : "#ca8a04";
+                p.ctx.fill();
+            }
+        }
+
+        let leafFont = totalLeaves > 35 ? "8px Arial" : "10px Arial";
 
         for(let cluster of result.allClusters){
             let position = layout.get(cluster.id);
@@ -206,7 +246,6 @@ class HClusterRenderer{
 
             let isLeaf = !cluster.tree || cluster.tree.length === 0;
             let label = isLeaf ? `P${cluster.points[0].i + 1}` : `C${cluster.id}`;
-
             let accent = isDark ? "#4f8cff" : "#1769e0";
             let leafDot = isDark ? "#94a3b8" : "#334155";
 

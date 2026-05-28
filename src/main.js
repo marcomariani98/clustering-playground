@@ -52,6 +52,7 @@ function startApp(){
     updateLegend();
     updatePseudocode();
     updateQualityLegend();
+    updateComplexityBadge();
     render();
 }
 
@@ -101,6 +102,12 @@ function bindEvents(){
         render();
     });
 
+    DOM("safemode").addEventListener("change", () => {
+        state.safeMode = DOM("safemode").checked;
+        setStatus(state.safeMode
+            ? "Safe mode ON — per-algorithm point limits enforced"
+            : "Safe mode OFF — heavy algorithms can freeze the browser");
+    });
     DOM("themeToggle").addEventListener("click", toggleTheme);
     updateThemeButton();
 
@@ -139,6 +146,20 @@ function bindEvents(){
             setStatus(`Spectral Laplacian: ${getSpectralLaplacianInfo().label}`);
             render();
         });
+    });
+
+    // I parametri di DBSCAN influenzano direttamente i cerchi epsilon disegnati.
+    // Se l'utente cambia il valore senza ri-runnare, il disegno precedente
+    // mostra raggi diversi dal nuovo valore: clearResult evita l'incongruenza.
+    ["dbscanEpsilon", "dbscanMinPts"].forEach((id) => {
+        let input = DOM(id);
+        if(input){
+            input.addEventListener("input", () => {
+                clearResult();
+                setStatus(`DBSCAN parameters updated`);
+                render();
+            });
+        }
     });
 
     bindRange("noiseCount", "noiseCountValue");
@@ -245,12 +266,30 @@ function bindEvents(){
         render();
     });
 
+    DOM("forgyCentroids").addEventListener("click", () => {
+        let k = readPositiveInt("kValue", "Invalid K");
+        if(!k || !checkData()) return;
+        kmeans.forgyCentroids(state.data, k);
+        clearResult();
+        setStatus(`Forgy centroids: ${kmeans.init_centroid.length}`);
+        render();
+    });
+
     DOM("kppCentroids").addEventListener("click", () => {
         let k = readPositiveInt("kValue", "Invalid K");
         if(!k || !checkData()) return;
         kmeans.kppCentroids(state.data, k);
         clearResult();
-        setStatus(`KMeans++ centroids: ${kmeans.init_centroid.length}`);
+        setStatus(`K-Means++ centroids: ${kmeans.init_centroid.length}`);
+        render();
+    });
+
+    DOM("farthestFirstCentroids").addEventListener("click", () => {
+        let k = readPositiveInt("kValue", "Invalid K");
+        if(!k || !checkData()) return;
+        kmeans.farthestFirstCentroids(state.data, k);
+        clearResult();
+        setStatus(`Farthest-First centroids: ${kmeans.init_centroid.length}`);
         render();
     });
 
@@ -320,8 +359,9 @@ function spawnBrushPoint(event){
     let noisePercent = parseInt(DOMgetValue("noiseCount")) || 0;
     let pointsSlider = parseInt(DOMgetValue("clusterSize")) || 50;
 
-    // Densita' del tratto: 1 a slider=50, ~3 a slider=120, 5 a slider=200.
-    let perTick = Math.max(1, Math.round(pointsSlider / 40));
+    // Mappatura diretta richiesta: slider=N -> N punti per tick.
+    // Slider va 1..200 quindi il pennello cresce in proporzione 1:1.
+    let perTick = Math.max(1, pointsSlider);
     // Raggio del pennello: 2px a spread=10, ~22px a spread=120.
     let brushRadius = Math.max(2, spread * 0.18);
     // Jitter extra: scala lineare col noise%, modulata dallo spread.
@@ -484,7 +524,33 @@ function changeMode(newMode){
     setStatus(`Mode: ${newMode}`);
     updateLegend();
     updatePseudocode();
+    updateComplexityBadge();
     render();
+}
+
+// Etichetta in alto a destra: notazione big-O del worst-case per l'algoritmo
+// selezionato. Severity (heavy/medium/light) colora il badge come "alert" visivo
+// quando l'algoritmo e' costoso. Stesse soglie usate da safeRun.
+function updateComplexityBadge(){
+    let badge = DOM("complexityBadge");
+    let value = DOM("complexityValue");
+    if(!badge || !value) return;
+
+    let map = {
+        kmeans:    { expr: "O(n·k·i)",  severity: "light"  },
+        fuzzy:     { expr: "O(n·k·i)",  severity: "light"  },
+        gmm:       { expr: "O(n·k·i)",  severity: "light"  },
+        dbscan:    { expr: "O(n²)",     severity: "medium" },
+        hdbscan:   { expr: "O(n²)",     severity: "medium" },
+        meanshift: { expr: "O(n²·i)",   severity: "medium" },
+        spectral:  { expr: "O(n³)",     severity: "heavy"  },
+        hcluster:  { expr: "O(n³)",     severity: "heavy"  }
+    };
+
+    let entry = map[state.mode] || { expr: "O(?)", severity: "light" };
+    value.textContent = entry.expr;
+    badge.dataset.severity = entry.severity;
+    badge.title = `Worst-case time complexity for ${state.mode}. n = points, k = clusters, i = iterations.`;
 }
 
 // Mappa slider 1-100 in delay 120-1050ms (piu' lo slider e' alto, piu' veloce).
@@ -643,7 +709,9 @@ function getSpectralLaplacianInfo(){
     let options = {
         unnormalized: { label: "Unnormalized L = D - W", shortLabel: "Unnormalized L" },
         symmetric: { label: "Symmetric normalized L = I - D^-1/2 W D^-1/2", shortLabel: "Symmetric normalized L" },
-        randomwalk: { label: "Random walk L = I - D^-1 W", shortLabel: "Random walk L" }
+        randomwalk: { label: "Random walk L = I - D^-1 W", shortLabel: "Random walk L" },
+        signless: { label: "Signless Q = D + W", shortLabel: "Signless Q" },
+        bethe: { label: "Bethe Hessian H = (β²-1)I + D - βW", shortLabel: "Bethe Hessian" }
     };
     return options[getSpectralLaplacianType()] || options.symmetric;
 }
@@ -905,14 +973,18 @@ function updateMetrics(){
     }
 
     panel.innerHTML = state.mode === "gmm"
-        ? renderGMMMetrics(metrics)
+        ? renderGMMMetrics(metrics, gmmModelComparisons)
         : metrics.map((metric) => renderMetricCard(metric)).join("");
 }
 
-function renderGMMMetrics(metrics){
+function renderGMMMetrics(metrics, comparisons){
     let find = (key) => metrics.find((metric) => metric.key === key);
     let assignment = [find("confidence"), find("uncertain")].filter(Boolean);
     let modelSelection = [find("avgLikelihood"), find("aic"), find("bic")].filter(Boolean);
+    let comparisonBlock = renderGMMComparisonTable(comparisons);
+    let comparisonHelp = comparisons && comparisons.length >= 2
+        ? `<p class="gmm-comparison-note">Each row is one run on this dataset. The highlighted row wins for its score (lower = better). When AIC and BIC pick the same k, you can trust it.</p>`
+        : `<p class="gmm-comparison-note">Rerun GMM on the same points with a different number of components to compare. AIC and BIC reward fit and punish complexity — lower wins.</p>`;
 
     return `
         <p class="gmm-metrics-intro">How confidently each Gaussian explains the points, followed by scores for comparing component counts.</p>
@@ -924,8 +996,94 @@ function renderGMMMetrics(metrics){
         <div class="gmm-model-grid">
             ${modelSelection.map((metric) => renderMetricCard(metric, "metric-compact")).join("")}
         </div>
-        <p class="gmm-comparison-note">AIC and BIC only become meaningful when you rerun the same dataset with a different number of Gaussian components. Lower is preferred.</p>
+        ${comparisonBlock}
+        ${comparisonHelp}
     `;
+}
+
+// Tabella che mette in colonna tutte le run salvate per il dataset corrente:
+// AIC e BIC vanno sempre letti "lower is better", e qui il "lower" e' visualizzato
+// come barretta corta. La run attuale e' evidenziata; quelle che vincono AIC o BIC
+// hanno il gradient di sfondo.
+function renderGMMComparisonTable(comparisons){
+    if(!comparisons || comparisons.length < 2){
+        return "";
+    }
+
+    let currentK = state.currentResult && state.currentResult.components
+        ? state.currentResult.components.length
+        : null;
+
+    let sorted = comparisons.slice().sort((a, b) => a.components - b.components);
+    let aicValues = sorted.map((entry) => entry.aic);
+    let bicValues = sorted.map((entry) => entry.bic);
+    let bestAic = Math.min(...aicValues);
+    let bestBic = Math.min(...bicValues);
+    let aicMax = Math.max(...aicValues);
+    let bicMax = Math.max(...bicValues);
+
+    let bestAicK = sorted.find((entry) => Math.abs(entry.aic - bestAic) < 0.000001).components;
+    let bestBicK = sorted.find((entry) => Math.abs(entry.bic - bestBic) < 0.000001).components;
+
+    let normalize = (value, min, max) => {
+        if(max - min < 0.000001) return 1;
+        // Inverso: piu' basso = barra piu' piena (lower is better).
+        return 1 - (value - min) / (max - min);
+    };
+
+    let rows = sorted.map((entry) => {
+        let isCurrent = entry.components === currentK;
+        let isBestAic = Math.abs(entry.aic - bestAic) < 0.000001;
+        let isBestBic = Math.abs(entry.bic - bestBic) < 0.000001;
+        let aicFill = (0.20 + 0.80 * normalize(entry.aic, bestAic, aicMax)) * 100;
+        let bicFill = (0.20 + 0.80 * normalize(entry.bic, bestBic, bicMax)) * 100;
+        let badge = isBestBic ? "★" : (isBestAic ? "☆" : "");
+        let classes = ["gmm-comparison-row"];
+
+        if(isCurrent) classes.push("is-current");
+        if(isBestBic) classes.push("is-best-bic");
+        else if(isBestAic) classes.push("is-best-aic");
+
+        return `
+            <div class="${classes.join(" ")}" title="${isCurrent ? "Current run" : "Previous run"}">
+                <span class="gmm-comparison-k">k=${entry.components}${isCurrent ? " ●" : ""}</span>
+                <div class="gmm-comparison-bar" title="AIC ${formatComparisonNumber(entry.aic)}">
+                    <div class="gmm-comparison-bar-fill" style="width: ${aicFill.toFixed(1)}%"></div>
+                    <span class="gmm-comparison-bar-value">${formatComparisonNumber(entry.aic)}</span>
+                </div>
+                <div class="gmm-comparison-bar" title="BIC ${formatComparisonNumber(entry.bic)}">
+                    <div class="gmm-comparison-bar-fill" style="width: ${bicFill.toFixed(1)}%"></div>
+                    <span class="gmm-comparison-bar-value">${formatComparisonNumber(entry.bic)}</span>
+                </div>
+                <span class="gmm-comparison-badge" title="${isBestBic ? "Best BIC overall" : (isBestAic ? "Best AIC overall" : "")}">${badge}</span>
+            </div>
+        `;
+    }).join("");
+
+    let agreement = bestAicK === bestBicK
+        ? `<span><strong>Agreed:</strong> k=${bestBicK} wins on both</span>`
+        : `<span>AIC prefers <strong>k=${bestAicK}</strong>, BIC prefers <strong>k=${bestBicK}</strong></span>`;
+
+    return `
+        <div class="gmm-comparison-table" role="table" aria-label="GMM model comparison">
+            <div class="gmm-comparison-header" role="row">
+                <span>Run</span>
+                <span>AIC ↓</span>
+                <span>BIC ↓</span>
+                <span></span>
+            </div>
+            ${rows}
+            <div class="gmm-comparison-verdict">${agreement}</div>
+        </div>
+    `;
+}
+
+function formatComparisonNumber(value){
+    if(!Number.isFinite(value)) return "n/d";
+    let abs = Math.abs(value);
+    if(abs >= 10000) return value.toFixed(0);
+    if(abs >= 100) return value.toFixed(0);
+    return value.toFixed(1);
 }
 
 function renderMetricCard(metric, extraClass = ""){
@@ -1090,6 +1248,7 @@ function updateQualityLegend(){
 
 function runKMeans(isStep){
     if(!checkData()) return;
+    if(!safeRun("kmeans")) return;
 
     if(kmeans.init_centroid.length === 0){
         window.alert("Generate centroids first to run K-Means.");
@@ -1116,6 +1275,7 @@ function runKMeans(isStep){
 
 function runDBSCAN(isStep){
     if(!checkData()) return;
+    if(!safeRun("dbscan")) return;
 
     let eps = readPositiveFloat("dbscanEpsilon", "Invalid epsilon");
     let minPts = readPositiveInt("dbscanMinPts", "Invalid MinPTS");
@@ -1140,6 +1300,7 @@ function runDBSCAN(isStep){
 
 function runSpectral(isStep){
     if(!checkData()) return;
+    if(!safeRun("spectral")) return;
 
     let k = readPositiveInt("spectralK", "Invalid Spectral K");
     let sigma = readPositiveFloat("spectralSigma", "Invalid Spectral sigma");
@@ -1148,13 +1309,6 @@ function runSpectral(isStep){
 
     if(k > state.data.length){
         setStatus("Spectral: K cannot exceed the number of points");
-        return;
-    }
-
-    // Power iteration O(n^3) per autovettore: oltre i 180 punti il browser freeza.
-    if(state.data.length > 180){
-        window.alert("Spectral can be slow with more than 180 points. Please reduce the dataset before running it.");
-        setStatus("Spectral: keep points below 180 to avoid freezing the browser");
         return;
     }
 
@@ -1177,6 +1331,7 @@ function runSpectral(isStep){
 
 function runFuzzy(isStep){
     if(!checkData()) return;
+    if(!safeRun("fuzzy")) return;
 
     let k = readPositiveInt("fuzzyClusters", "Invalid Fuzzy clusters");
     let m = readPositiveFloat("fuzzyM", "Invalid fuzziness");
@@ -1211,6 +1366,7 @@ function runFuzzy(isStep){
 
 function runMeanShift(isStep){
     if(!checkData()) return;
+    if(!safeRun("meanshift")) return;
 
     let bandwidth = readPositiveFloat("meanShiftBandwidth", "Invalid bandwidth");
     let iterations = readPositiveInt("meanShiftIterations", "Invalid Mean Shift iterations");
@@ -1235,6 +1391,7 @@ function runMeanShift(isStep){
 
 function runGMM(isStep){
     if(!checkData()) return;
+    if(!safeRun("gmm")) return;
 
     let k = readPositiveInt("gmmComponents", "Invalid GMM components");
     let iterations = readPositiveInt("gmmIterations", "Invalid GMM iterations");
@@ -1292,18 +1449,11 @@ function rememberGMMComparison(componentCount, result){
 
 function runHDBSCAN(isStep){
     if(!checkData()) return;
+    if(!safeRun("hdbscan")) return;
 
     let minPts = readPositiveInt("hdbscanMinPts", "Invalid HDBSCAN MinPTS");
     let minClusterSize = readPositiveInt("hdbscanMinClusterSize", "Invalid min cluster size");
     if(!minPts || !minClusterSize) return;
-
-    // Lo step "prova tutti i threshold del MST" e' O(n^2): sopra i 260 punti
-    // la UI si blocca per parecchi secondi. Meglio fermare l'utente prima.
-    if(state.data.length > 260){
-        window.alert("HDBSCAN can be slow with more than 260 points. Please reduce the dataset before running it.");
-        setStatus("HDBSCAN: keep points below 260 to avoid freezing the browser");
-        return;
-    }
 
     if(isStep && state.hasSteps()){
         showNextStep();
@@ -1324,14 +1474,7 @@ function runHDBSCAN(isStep){
 
 function runHCluster(isStep){
     if(!checkData()) return;
-
-    // HCluster O(n^3) nel caso generale, e teniamo tutti gli step in memoria
-    // per il dendrogramma: oltre 30 punti diventa un disastro.
-    if(state.data.length > 30){
-        window.alert("Hierarchical clustering can be slow with more than 30 points. Please reduce the dataset before running it.");
-        setStatus("HCluster: keep points at 30 or below to avoid freezing the browser");
-        return;
-    }
+    if(!safeRun("hcluster")) return;
 
     if(isStep && state.hasSteps()){
         showNextStep();
@@ -1453,15 +1596,8 @@ function updatePreviews(){
         }
     }
 
-    let hclusterWrap = DOM("hclusterPreviewWrap");
-    if(hclusterWrap){
-        if(state.mode === "hcluster" && state.currentResult && state.currentResult.allClusters){
-            hclusterWrap.classList.remove("hidden");
-            drawMiniDendrogram(DOM("hclusterPreview"), state.currentResult);
-        }else{
-            hclusterWrap.classList.add("hidden");
-        }
-    }
+    // Il dendrogramma di HCluster ora cresce direttamente sul canvas principale
+    // (HClusterRenderer._drawTree) animato a ogni merge: niente preview sidebar.
 }
 
 // Heatmap NxN della matrice di affinity. Ogni cella e' una "celletta" colorata
@@ -1507,106 +1643,6 @@ function drawAffinityHeatmap(canvas, result){
     ctx.strokeRect(0.5, 0.5, cssSize - 1, cssSize - 1);
 }
 
-// Dendrogramma compatto. Riusa la stessa idea del pannello full-size dentro
-// HClusterRenderer: foglie distribuite a destra, padre a sinistra in base al
-// livello dell'albero. Qui senza testo, solo geometria — e' un sommario visivo.
-function drawMiniDendrogram(canvas, result){
-    let ctx = canvas.getContext("2d");
-    let dpr = window.devicePixelRatio || 1;
-    let cssWidth = Math.max(canvas.clientWidth, 200);
-    let cssHeight = 200;
-
-    if(canvas.width !== cssWidth * dpr){
-        canvas.width = cssWidth * dpr;
-        canvas.height = cssHeight * dpr;
-    }
-    canvas.style.height = `${cssHeight}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssWidth, cssHeight);
-
-    let allClusters = result.allClusters || [];
-    if(allClusters.length === 0) return;
-
-    // La radice e' il cluster con il livello piu' alto.
-    let root = allClusters.reduce((best, c) => (c.level || 0) > (best.level || 0) ? c : best, allClusters[0]);
-    let clusterMap = new Map(allClusters.map((c) => [c.id, c]));
-    let leaves = [];
-
-    let collectLeaves = (cluster) => {
-        if(!cluster.tree || cluster.tree.length === 0){
-            leaves.push(cluster);
-            return;
-        }
-        for(let childId of cluster.tree){
-            let child = clusterMap.get(childId);
-            if(child) collectLeaves(child);
-        }
-    };
-    collectLeaves(root);
-
-    if(leaves.length < 2) return;
-
-    let pad = 8;
-    let left = pad;
-    let right = cssWidth - pad;
-    let top = pad;
-    let bottom = cssHeight - pad;
-    let leafGap = leaves.length > 1 ? (bottom - top) / (leaves.length - 1) : 0;
-    let rootLevel = Math.max(1, root.level || 1);
-    let layout = new Map();
-
-    for(let [i, leaf] of leaves.entries()){
-        layout.set(leaf.id, { x: right, y: top + i * leafGap });
-    }
-
-    let place = (cluster) => {
-        if(layout.has(cluster.id)) return layout.get(cluster.id);
-        let children = (cluster.tree || []).map((id) => clusterMap.get(id)).filter(Boolean);
-        let positions = children.map((c) => place(c));
-        let y = positions.reduce((sum, p) => sum + p.y, 0) / positions.length;
-        let levelRatio = (cluster.level || 0) / rootLevel;
-        let x = right - levelRatio * (right - left);
-        let pos = { x, y };
-        layout.set(cluster.id, pos);
-        return pos;
-    };
-    place(root);
-
-    let dark = isDarkTheme();
-    let edgeColor = dark ? "rgba(148,163,184,0.55)" : "rgba(71,85,105,0.55)";
-    let leafColor = dark ? "#cbd5e1" : "#475569";
-    let nodeColor = dark ? "#4f8cff" : "#1769e0";
-
-    ctx.strokeStyle = edgeColor;
-    ctx.lineWidth = 1.1;
-
-    for(let cluster of allClusters){
-        if(!cluster.tree || cluster.tree.length !== 2 || !layout.has(cluster.id)) continue;
-        let parent = layout.get(cluster.id);
-        for(let childId of cluster.tree){
-            let child = layout.get(childId);
-            if(!child) continue;
-            let elbowX = (parent.x + child.x) / 2;
-            ctx.beginPath();
-            ctx.moveTo(parent.x, parent.y);
-            ctx.lineTo(elbowX, parent.y);
-            ctx.lineTo(elbowX, child.y);
-            ctx.lineTo(child.x, child.y);
-            ctx.stroke();
-        }
-    }
-
-    for(let cluster of allClusters){
-        let pos = layout.get(cluster.id);
-        if(!pos) continue;
-        let isLeaf = !cluster.tree || cluster.tree.length === 0;
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, isLeaf ? 1.8 : 2.6, 0, 2 * Math.PI, false);
-        ctx.fillStyle = isLeaf ? leafColor : nodeColor;
-        ctx.fill();
-    }
-}
-
 function clearResult(){
     stopAutoplay(false);
     state.clearResult();
@@ -1642,6 +1678,46 @@ function readPositiveFloat(id, errorMessage){
 function setStatus(message){
     DOMsetValue("statusText", message);
     updateMetrics();
+}
+
+// Limiti scelti in base alla complessità di ogni algoritmo sul main thread:
+// K-Means    O(n·k·iter)   — lineare su n, regge bene fino a migliaia di punti
+// DBSCAN     O(n²)         — matrice distanze naive, rallenta oltre ~800
+// Spectral   O(n³)         — eigendecomposizione power-iteration, freeza oltre ~180
+// Fuzzy      O(n·k·iter)   — simile a K-Means, tolera fino a ~1500
+// Mean Shift O(n²·iter)    — kernel density su tutti i punti a ogni step, lento oltre ~500
+// GMM        O(n·k·iter)   — E-step lineare su n, regge fino a ~1500
+// HDBSCAN    O(n²)         — costruzione MST + sorting di tutti i threshold, lento oltre ~260
+// HCluster   O(n³) + O(n²) mem — tutti gli n-1 merge in memoria per il dendrogramma, limite severo a 30
+function safeRun(algorithm){
+    const maxLength = {
+        "kmeans": 2000,
+        "dbscan": 800,
+        "spectral": 180,
+        "fuzzy": 1500,
+        "meanshift": 500,
+        "gmm": 1500,
+        "hdbscan": 260,
+        "hcluster": 30
+    };
+
+    const diagnosticMessages = {
+        "kmeans": "K-Means can be slow with more than 2000 points. Please reduce the dataset before running it.",
+        "dbscan": "DBSCAN can be slow with more than 800 points. Please reduce the dataset before running it.",
+        "spectral": "Spectral can be slow with more than 180 points. Please reduce the dataset before running it.",
+        "fuzzy": "Fuzzy C-Means can be slow with more than 1500 points. Please reduce the dataset before running it.",
+        "meanshift": "Mean Shift can be slow with more than 500 points. Please reduce the dataset before running it.",
+        "gmm": "GMM can be slow with more than 1500 points. Please reduce the dataset before running it.",
+        "hdbscan": "HDBSCAN can be slow with more than 260 points. Please reduce the dataset before running it.",
+        "hcluster": "Hierarchical clustering can be messy with more than 30 points. Please reduce the dataset before running it."
+    };
+
+    if(state.safeMode && state.data.length > maxLength[algorithm]){
+        window.alert(diagnosticMessages[algorithm]);
+        setStatus(diagnosticMessages[algorithm]);
+        return false;
+    }
+    return true;
 }
 
 document.addEventListener("DOMContentLoaded", () => {

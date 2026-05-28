@@ -30,9 +30,36 @@ class kMeans{
         return this.init_centroid;
     }
 
-    // K-Means++: ogni nuovo centroide e' il punto piu' lontano dai precedenti.
-    // Non e' la versione probabilistica originale, e' la furthest-point greedy:
-    // piu' deterministica, piu' didattica.
+    // Forgy (1965): k punti uniformi presi dal dataset. Classico baseline
+    // pre-2007: veloce e semplice, ma con sfortuna becca due punti vicini
+    // e parte male. Diverso da generateInitCentroids che pesca dal canvas
+    // intero: qui i centroidi nascono sicuramente sopra dei dati.
+    forgyCentroids(data,k){
+        this.init_centroid = [];
+
+        if(data.length === 0 || k <= 0){
+            return this.init_centroid;
+        }
+
+        let indices = new Set();
+        let target = Math.min(k,data.length);
+
+        while(indices.size < target){
+            indices.add(Math.floor(Math.random() * data.length));
+        }
+
+        for(let i of indices){
+            this.init_centroid.push({x:data[i].x,y:data[i].y});
+        }
+
+        return this.init_centroid;
+    }
+
+    // K-Means++ vero (Arthur-Vassilvitskii 2007): primo centroide a caso, poi
+    // ogni nuovo centroide e' campionato con probabilita' proporzionale a D(x)^2,
+    // dove D(x) e' la distanza dal piu' vicino centroide gia' scelto. E' il
+    // compromesso fra Farthest-First (sempre il piu' lontano, sensibile agli
+    // outlier) e Forgy (uniforme, niente diversificazione).
     kppCentroids(data,k){
         this.init_centroid = [];
 
@@ -40,7 +67,67 @@ class kMeans{
             return this.init_centroid;
         }
 
-        let firstIndex = parseInt(Math.random() * data.length);
+        let firstIndex = Math.floor(Math.random() * data.length);
+        this.init_centroid.push({x:data[firstIndex].x,y:data[firstIndex].y});
+
+        while(this.init_centroid.length < k){
+            let weights = [];
+            let total = 0;
+
+            for(let point of data){
+                let minDistSq = Infinity;
+
+                for(let centroid of this.init_centroid){
+                    let dx = point.x - centroid.x;
+                    let dy = point.y - centroid.y;
+                    let distSq = dx * dx + dy * dy;
+
+                    if(distSq < minDistSq){
+                        minDistSq = distSq;
+                    }
+                }
+
+                weights.push(minDistSq);
+                total += minDistSq;
+            }
+
+            // Tutti i punti gia' coperti dai centroidi esistenti: niente da scegliere.
+            if(total === 0){
+                break;
+            }
+
+            // Roulette-wheel: pesca r in [0, total) e trova l'indice corrispondente.
+            let r = Math.random() * total;
+            let acc = 0;
+            let chosen = data[data.length - 1];
+
+            for(let i = 0;i < data.length;i++){
+                acc += weights[i];
+
+                if(acc >= r){
+                    chosen = data[i];
+                    break;
+                }
+            }
+
+            this.init_centroid.push({x:chosen.x,y:chosen.y});
+        }
+
+        return this.init_centroid;
+    }
+
+    // Farthest-First Traversal (Gonzalez 1985), a volte chiamato impropriamente
+    // K-Means++: scelta deterministica del punto con massima distanza minima dai
+    // centroidi gia' scelti. Buono su cluster sferici, ma se c'e' un outlier
+    // viene preso subito come secondo centroide.
+    farthestFirstCentroids(data,k){
+        this.init_centroid = [];
+
+        if(data.length === 0 || k <= 0){
+            return this.init_centroid;
+        }
+
+        let firstIndex = Math.floor(Math.random() * data.length);
         this.init_centroid.push({x:data[firstIndex].x,y:data[firstIndex].y});
 
         while(this.init_centroid.length < k){

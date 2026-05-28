@@ -80,34 +80,44 @@ const Metrics = (function(){
             let info = gmmInfo(result, data);
             let confidence = gmmConfidence(result, data);
             let comparison = gmmComparisonQuality(info, modelComparisons);
+            // Fit/point usa sempre la convergenza (l'absolute value non e' confrontabile
+            // fra dataset diversi). AIC e BIC usano il rank se ci sono >= 2 run, altrimenti
+            // riusano la convergenza come segnale di "questa singola run e' buona o no".
+            let convergenceQuality = gmmConvergenceQuality(steps, info.logLikelihood);
+            let aicQuality = comparison.aic === "neutral" ? convergenceQuality : comparison.aic;
+            let bicQuality = comparison.bic === "neutral" ? convergenceQuality : comparison.bic;
 
             return [
                 metric("Mean confidence", `${formatNumber(confidence.mean * 100, 1)}%`, qualityHigh(confidence.mean, 0.82, 0.62), {
                     key: "confidence",
                     bar: confidence.mean,
-                    hint: "Average posterior probability of the winning Gaussian. Higher means clearer assignments."
+                    hint: "Average top-component probability per point. Above 82% the components are clearly separated; below 62% they overlap too much to tell apart."
                 }),
                 metric("Uncertain points", `${confidence.uncertainCount} / ${data.length}`, qualityLow(confidence.uncertainRatio * 100, 10, 25), {
                     key: "uncertain",
                     bar: confidence.uncertainRatio,
                     barInvert: true,
-                    hint: "Points whose best component has less than 60% probability. Lower is better."
+                    hint: "Points whose best Gaussian explains them with less than 60% probability. Below 10% is healthy; above 25% the fit is unreliable."
                 }),
-                metric("Fit / point", formatNumber(info.avgLogLikelihood, 2), "neutral", {
+                metric("Fit / point", formatNumber(info.avgLogLikelihood, 2), convergenceQuality, {
                     key: "avgLikelihood",
-                    hint: "Fit per point. Read its convergence curve or compare runs on the same dataset."
+                    hint: convergenceQuality === "good"
+                        ? "Converged cleanly: the last EM step changed the log-likelihood by less than 0.1%."
+                        : convergenceQuality === "medium"
+                            ? "Still improving at the last step: try more iterations or a different k for a tighter fit."
+                            : "Log-likelihood decreased or diverged — the fit is unstable, try a different k or rerun."
                 }),
-                metric("AIC", formatNumber(info.aic, 0), comparison.aic, {
+                metric("AIC", formatNumber(info.aic, 0), aicQuality, {
                     key: "aic",
                     hint: comparison.hint
-                        ? `${comparison.hint} AIC uses a moderate complexity penalty.`
-                        : "Run GMM with another component count on these same points to compare AIC. Lower wins."
+                        ? `${comparison.hint} Lower wins. AIC has a mild penalty for extra Gaussians.`
+                        : "Color reflects convergence quality of this single run. Rerun with another k on the same points to switch to model-vs-model ranking — lower wins."
                 }),
-                metric("BIC", formatNumber(info.bic, 0), comparison.bic, {
+                metric("BIC", formatNumber(info.bic, 0), bicQuality, {
                     key: "bic",
                     hint: comparison.hint
-                        ? `${comparison.hint} BIC penalizes extra components more strongly as data grows.`
-                        : "Run GMM with another component count on these same points to compare BIC. Lower wins."
+                        ? `${comparison.hint} Lower wins. BIC penalizes extra Gaussians more harshly than AIC, especially on larger datasets.`
+                        : "Color reflects convergence quality of this single run. Rerun with another k on the same points to switch to model-vs-model ranking — lower wins."
                 })
             ];
         }
@@ -523,6 +533,33 @@ const Metrics = (function(){
             bic: rankLowerIsBetter(info.bic, comparisons.map((entry) => entry.bic)),
             hint: `Compared across ${comparisons.length} component counts on this dataset.`
         };
+    }
+
+    // Quando manca il rank cross-run, valutiamo la qualita' della convergenza:
+    // se l'ultimo guadagno e' < 0.1% del valore corrente -> ha plateau-ato (good),
+    // se sta ancora migliorando -> non e' stabile (medium), se diverge -> bad.
+    // Stesso semaforo viene mostrato per Fit/point, AIC e BIC quando single-run.
+    function gmmConvergenceQuality(steps, currentLogLikelihood){
+        if(!Number.isFinite(currentLogLikelihood)) return "bad";
+        if(!steps || steps.length < 2) return "medium";
+
+        let values = steps
+            .map((step) => step.logLikelihood)
+            .filter((value) => Number.isFinite(value));
+
+        if(values.length < 2) return "medium";
+
+        let last = values[values.length - 1];
+        let prev = values[values.length - 2];
+        let first = values[0];
+        let totalGain = last - first;
+        let lastGainAbs = Math.abs(last - prev);
+        let scale = Math.max(1, Math.abs(last));
+
+        if(totalGain < -0.001) return "bad";              // log-likelihood scesa: divergenza
+        if(lastGainAbs < scale * 0.001) return "good";    // plateau: convergenza pulita
+        if(lastGainAbs < scale * 0.01) return "medium";   // ancora in salita lieve
+        return "medium";                                  // salita decisa: non stabile
     }
 
     function rankLowerIsBetter(current, values){

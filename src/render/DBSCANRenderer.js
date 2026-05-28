@@ -49,28 +49,36 @@ class DBSCANRenderer{
     }
 
     // Cerchi epsilon su tutti i punti, opacita' modulata dalla densita' locale.
+    // Salta esplicitamente il currentPoint: la _drawCurrentQuery disegna gia'
+    // il proprio cerchio blu, evitando il doppio tratto sovrapposto.
     _drawRanges(data, result){
         let p = this.p;
         let maxCount = Math.max(1, ...result.neighborCounts);
+        let currentIndex = result.currentPoint ? result.currentPoint.i : -1;
+        let eps = Math.max(1, result.eps || 0);
 
         for(let [i, point] of data.entries()){
+            if(i === currentIndex) continue;
             let density = (result.neighborCounts[i] || 1) / maxCount;
-            let alpha = 0.16 + density * 0.28;
-            let lineWidth = 1 + density * 2;
-            p.drawRadius(point.x, point.y, result.eps, `rgba(73, 82, 96, ${alpha})`, lineWidth);
+            let alpha = 0.14 + density * 0.26;
+            let lineWidth = 1 + density * 1.6;
+            p.drawRadius(point.x, point.y, eps, `rgba(73, 82, 96, ${alpha})`, lineWidth);
         }
     }
 
     // Lo step corrente: cerchio blu sul punto in visita + linee verso i vicini.
+    // Il label mostra il valore numerico di eps cosi' resta sincronizzato con
+    // il parametro nella sidebar anche se l'utente lo modifica fra una run e l'altra.
     _drawCurrentQuery(result){
         if(!result || !result.currentPoint) return;
 
         let p = this.p;
         let current = result.currentPoint;
         let neighbors = result.currentNeighbors || [];
+        let eps = Math.max(1, result.eps || 0);
 
         p.ctx.save();
-        p.drawRadius(current.x, current.y, result.eps, "rgba(23, 105, 224, 0.50)", 2.2);
+        p.drawRadius(current.x, current.y, eps, "rgba(23, 105, 224, 0.55)", 2.4);
 
         for(let neighbor of neighbors){
             p.ctx.beginPath();
@@ -95,7 +103,8 @@ class DBSCANRenderer{
         p.ctx.lineWidth = 2;
         p.ctx.stroke();
 
-        p.drawLabel({ x: current.x + 8, y: current.y - 8 }, "eps", "#1769e0", "700 12px Arial");
+        let epsLabel = `eps=${eps.toFixed(eps < 10 ? 1 : 0)}`;
+        p.drawLabel({ x: current.x + 10, y: current.y - 10 }, epsLabel, "#1769e0", "700 12px Arial");
         p.ctx.restore();
     }
 

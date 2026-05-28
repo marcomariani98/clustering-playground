@@ -45,12 +45,12 @@ class GMM{
         return finalResult;
     }
 
-    // Init alla K-Means++ greedy + covarianza globale del dataset. Tutte le
-    // componenti partono con lo stesso peso 1/k.
+    // Init alla Farthest-First (Gonzalez 1985, non K-Means++ probabilistico)
+    // + covarianza globale del dataset. Tutte le componenti partono con peso 1/k.
     initComponents(data,k){
         let means = [];
         let components = [];
-        let firstIndex = parseInt(Math.random() * data.length);
+        let firstIndex = Math.floor(Math.random() * data.length);
 
         means.push({x:data[firstIndex].x,y:data[firstIndex].y});
 
