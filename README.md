@@ -12,7 +12,7 @@ Built in vanilla JavaScript. No npm, no build step, no dependencies. Just static
 
 This is an educational tool. You generate (or paint) a scatter of points, pick an algorithm, and watch it cluster them. Then you change the parameters and watch it again. You can step through one iteration at a time, play an animation, or just execute once and see the result.
 
-It's been in development for about three years. Started as a Node.js university project, became a single 5000-line file, then got split back into modules because that was less painful to read. Now it's pretty modular but still has zero external dependencies.
+This project has been in development on and off for about three years, through a lot of rewrites, false starts, and lessons learned. It started as a Node.js university project, grew into a single 5,000-line file, then eventually got split back into modules because that was much less painful to read. Now it's pretty modular, but still has zero external dependencies.
 
 The core idea is simple: clustering algorithms are easier to understand when you see them work. Theory is fine. But watching K-Means centroid movement or how DBSCAN grows clusters from density seeds makes intuition stick.
 
@@ -102,15 +102,6 @@ Some simplifications are intentional. The code prioritizes clarity over optimiza
 
 ---
 
-## 🆕 Recent Changes
-
-- **Refactored view layer:** All UI rendering (metrics cards, charts, legend, pseudocode) moved from `main.js` into `src/ui/` (five dedicated modules). This cut `main.js` from 1726 to 1037 lines and made the code way more navigable.
-- **Backward step:** Added a **Back ⏮️** button. You can now step backwards through an algorithm's execution without replaying it. It's free — the steps are already in memory, so stepping back is O(1).
-- **English comments:** All 22 JS files now have full English comments (converted from Italian). Every module has a header explaining its purpose, and functions document their contract.
-- **AppState owns GMM history:** The GMM comparison table (AIC/BIC ranking) is now part of `AppState` instead of loose globals in `main.js`. Cleaner session management.
-
----
-
 ## 🚀 Local Development
 
 Just open `index.html` in a browser. That's it.
@@ -188,8 +179,7 @@ The Step/Play/Back flow handles the rest.
 
 ## 📚 Resources
 
-- [Interactive Clustering Algorithms](https://www.naftaliharris.com/blog/visualizing-k-means-clustering/) (for inspiration)
-- Original K-Means paper
+- Original Clustering papers
 - Papers on the various Laplacians (Spectral Clustering guides by Ng, Jordan, and Weiss)
 - Mean Shift references (Comaniciu & Meer)
 - GMM/EM introduction by Murphy or Bishop
