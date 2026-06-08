@@ -1,5 +1,8 @@
 "use strict";
 
+// Hierarchical Clustering visualization. Renders the dendrogram growing on the main canvas
+// as merges occur step by step. A yellow marker highlights the most recent merge at each step.
+
 class HClusterRenderer{
     constructor(primitives){
         this.p = primitives;

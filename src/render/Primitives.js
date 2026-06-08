@@ -1,8 +1,9 @@
 "use strict";
 
-// Le primitive di disegno: punti, croci, cerchi, etichette, sfondi Voronoi.
-// Nessun renderer disegna direttamente sul ctx — passa sempre da qui.
-// Tiene anche width/height del canvas, cosi' gli algoritmi possono leggerli.
+// Centralized canvas drawing primitives: points, crosses, circles, labels,
+// Voronoi backgrounds, etc. No renderer draws directly to the canvas context;
+// all drawing goes through this class. Also holds canvas dimensions so algorithms
+// and UI code can query width/height without accessing the DOM directly.
 
 class Primitives{
     constructor(canvas){

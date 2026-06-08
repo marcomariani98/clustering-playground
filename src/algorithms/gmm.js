@@ -1,8 +1,9 @@
 "use strict";
 
-// GMM con EM. Tutto in 2D, quindi la covarianza e' una matrice 2x2 (a, b, c)
-// e l'inversione e' fatta a mano in gaussian(). regularizer + i floor a 9 sul
-// minor asse evitano che una componente collassi su un singolo punto.
+// Gaussian Mixture Model (GMM) with Expectation-Maximization (EM) algorithm.
+// All computation is in 2D, so covariance is a 2×2 matrix (stored as {a, b, c} for compact algebra).
+// Manual inversion in gaussian() avoids complexity. Regularizer + floor at 0.9 on minor axis
+// prevent a component from collapsing to a single point.
 class GMM{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;

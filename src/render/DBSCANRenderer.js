@@ -1,5 +1,9 @@
 "use strict";
 
+// DBSCAN visualization. Renders points colored by cluster, circles for the epsilon search radius
+// (with the current epsilon value labeled), blue lines from core points to neighbors within eps,
+// purple points for border points, and black points for noise.
+
 class DBSCANRenderer{
     constructor(primitives){
         this.p = primitives;

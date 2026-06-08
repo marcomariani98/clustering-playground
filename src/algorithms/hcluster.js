@@ -1,8 +1,8 @@
 "use strict";
 
-// Hierarchical agglomerativo. Parte da n cluster singoletto e a ogni passo
-// fonde i due piu' vicini secondo linkage+metric. Tutto lo storico viene
-// tenuto in memoria per ricostruire il dendrogramma — quindi O(n^2) di RAM.
+// Hierarchical agglomerative clustering. Starts with n singleton clusters (one per point).
+// At each step, merges the two closest clusters according to linkage method and distance metric.
+// All merge history is kept in memory to reconstruct the dendrogram, so O(n²) memory usage.
 class HCluster{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;

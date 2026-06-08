@@ -1,9 +1,13 @@
 "use strict";
 
-// Generatori dei dataset. Tre parametri condivisi:
-//   - count: quanti punti
-//   - spread: scala della forma
-//   - noisePercent: quanto i punti si allontanano dalla distribuzione ideale
+// Dataset generators for testing clustering algorithms on synthetic data.
+// All generators share three parameters:
+//   - count: number of points to generate
+//   - spread: scale/size of the shape (influences cluster width or density)
+//   - noisePercent: percentage of points that deviate randomly from the ideal distribution
+//
+// Each generator returns an array of {x, y} points clamped to the canvas bounds.
+// Margin of 18px keeps points away from canvas edges for readability.
 
 function generateNoisePoints(count,width,height){
     let margin = 18;

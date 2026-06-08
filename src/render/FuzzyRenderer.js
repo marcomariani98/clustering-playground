@@ -1,5 +1,9 @@
 "use strict";
 
+// Fuzzy C-Means visualization. Renders points with transparency proportional to their
+// strongest membership value, purple halos for ambiguous points, dashed lines for centroid
+// movement, crosses for centroids, and soft colors reflecting soft membership.
+
 class FuzzyRenderer{
     constructor(primitives){
         this.p = primitives;

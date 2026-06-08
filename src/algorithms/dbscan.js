@@ -1,9 +1,9 @@
 "use strict";
 
-// DBSCAN. Densita' = un punto e' "core" se ha >= minPts vicini entro eps.
-// Note: il regionQuery e' O(n) e expandCluster richiama indexOf in loop, quindi
-// nel peggiore dei casi e' O(n^3). Per <300 punti regge, ma una grid index
-// abbasserebbe drasticamente i tempi.
+// Density-Based Spatial Clustering of Applications with Noise (DBSCAN).
+// Density definition: a point is a "core point" if it has >= minPts neighbors within eps radius.
+// Note: regionQuery is O(n) and expandCluster calls indexOf in a loop, making worst-case O(n²).
+// For <800 points it's acceptable; a grid index would dramatically speed this up but add complexity.
 class DBSCAN{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;

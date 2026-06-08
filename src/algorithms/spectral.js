@@ -1,9 +1,9 @@
 "use strict";
 
-// Spectral clustering. Pipeline: affinity RBF -> Laplaciano (uno dei tre) ->
-// k autovettori piu' piccoli (via power iteration con deflation, non Lanczos:
-// piu' semplice ma O(n^3) per autovettore, ecco perche' c'e' il cap a 180 punti)
-// -> K-Means nello spazio embedding.
+// Spectral clustering. Pipeline: RBF affinity matrix → user-selected Laplacian type →
+// k smallest eigenvectors (via power iteration with deflation, not Lanczos—simpler but O(n^3)
+// per eigenvector, hence the 180-point cap) → K-Means on the embedding. Supports five
+// Laplacian variants: symmetric normalized, unnormalized, random walk, signless, Bethe Hessian.
 class SpectralClustering{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;

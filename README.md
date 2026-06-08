@@ -1,271 +1,201 @@
-# Clustering Playground
+# 🎮 Clustering Playground
 
-Interactive playground to visualize and experiment with clustering algorithms directly in the browser.
+A visual playground for clustering algorithms. Open it in your browser and watch eight different algorithms compete on datasets you draw, generate, or tweak in real time.
 
-Built with vanilla JavaScript and HTML5 Canvas.
+Built in vanilla JavaScript. No npm, no build step, no dependencies. Just static files.
 
----
-
-# Online Demo 🎮
-
-👉 [Try live demo](https://marcomariani98.github.io/clustering-playground/) 👈
-
-The project can be run directly in the browser through GitHub Pages.
+**🚀 [Try it live](https://marcomariani98.github.io/clustering-playground/)**
 
 ---
 
-# Overview
+## 📊 What It Does
 
-This project is an educational and visual tool for exploring how the main clustering algorithms behave on synthetic datasets generated in real time.
+This is an educational tool. You generate (or paint) a scatter of points, pick an algorithm, and watch it cluster them. Then you change the parameters and watch it again. You can step through one iteration at a time, play an animation, or just execute once and see the result.
 
-The project intentionally avoids external libraries and keeps the implementation in vanilla JavaScript.
+It's been in development for about three years. Started as a Node.js university project, became a single 5000-line file, then got split back into modules because that was less painful to read. Now it's pretty modular but still has zero external dependencies.
 
-It is a personal project developed and improved progressively over about 3 years, with ups and downs, through continuous experimentation, study of clustering algorithms, and many iterations on the visual and educational experience. The project originally started as a separate university exam project built with Node.js. Later, I revisited the idea and tried to turn it into a single-file version, which is how the first commits of this repository were made. After about a week, I split the logic again into smaller modules to improve readability, maintainability, and the internal structure, bringing it closer to the original spirit of the project, while still preserving the initial philosophy of keeping it dependency-free, without Node.js or external libraries. In a way, the circle is now complete.
-
-The application lets you:
-
-- generate interactive datasets
-- paint custom datasets with the brush tool (1:1 mapping: slider value = points spawned per stroke tick)
-- export and reload point clouds as JSON
-- run different clustering algorithms
-- execute algorithms instantly
-- play animated algorithm steps
-- move step by step through intermediate states
-- stop an active animation at any time
-- control the animation speed
-- observe boundaries and decision regions
-- inspect metrics, convergence curves, and a model comparison table for GMM
-- read the current algorithm's worst-case complexity at a glance (big-O badge in the top bar)
-- opt out of the per-algorithm safety guard when you want to push the dataset further
-- switch between light and dark themes
-- compare centroid-based, density-based, and structure-based approaches
-- understand intuitively how results change when parameters change
-
-The main goal is educational and visual, not scientific performance or production-ready usage.
+The core idea is simple: clustering algorithms are easier to understand when you see them work. Theory is fine. But watching K-Means centroid movement or how DBSCAN grows clusters from density seeds makes intuition stick.
 
 ---
 
-## Visualizations
+## ✨ What You Can Do
 
-### Mean Shift
-![MeanShift](imgs/meanshift.png)
+### 🎨 Generate or paint datasets
+- Five built-in shapes: random clusters, noise, two moons, concentric circles, spiral
+- Or use the brush tool. Drag to paint points. The slider controls how many points spawn per pixel you drag
+- Adjust spread, noise percentage, cluster count on the fly
+- Export your points to JSON, reload them later
 
-### HDBSCAN
-![Spectral](imgs/hdbscan.png)
+### ▶️ Run algorithms step-by-step
+- **Play ▶️** — animated execution showing each step
+- **Step ⏭️** — advance one step at a time (useful when you want to understand what's happening)
+- **Back ⏮️** — go back one step if you overshot (free operation, no recalculation)
+- **Execute ⚡** — just run to completion instantly
+- **Stop 🛑** — pause without clearing the result
 
-### Spectral Clustering
-![Spectral](imgs/spectral.png)
+### 📈 See complexity at a glance
+- Each algorithm shows its worst-case complexity (O(n), O(n²), O(n³), etc.) in the top bar
+- "Safe mode" warns you if your dataset is too big for the selected algorithm (and you can turn it off if you're feeling reckless)
+- The application won't let you freeze your browser without asking first
 
-### DBSCAN
-![DBSCAN](imgs/dbscan.png)
+### 📊 Understand the results
+- Metrics cards with traffic-light coloring (green/yellow/red) explain whether the clustering is good
+- Convergence sparklines show how the algorithm improves over iterations
+- For Spectral: affinity heatmap in the sidebar shows which points are connected
+- For GMM: cross-run AIC/BIC comparison helps you pick how many components to use
+- For K-Means: you can manually place initial centroids and see how that affects convergence
 
-### Gaussian Mixture Models
-![GMM](imgs/gmm.png)
-
-### Hierarchical Clustering
-![HCluster](imgs/hcluster.png)
-
-### K-Means
-![KMeans](imgs/kmeans.png)
-
----
-
-# Features
-
-## Dataset Generation
-
-Available datasets:
-
-- Random clusters
-- Random noise
-- Two Moons
-- Concentric circles
-- Spiral
-
-Adjustable parameters:
-
-- number of points
-- spread
-- noise percentage
-- number of clusters
-
-## Custom Datasets
-
-Besides the standard generators, **Brush mode** lets you paint points directly on the canvas by dragging the mouse. The `Points` slider maps **1:1** to the number of points spawned per tick (slider = 1 paints one point at a time, slider = 50 paints 50, up to 200). The `Spread` controls the brush radius and `Noise %` adds extra jitter — same controls as the generators, applied directly to the stroke.
-
-The `Save / Load` tab exports the current point cloud to JSON and reloads it later, so hand-drawn datasets can be reused.
+### 🌙 Toggle between light and dark themes
+Everything redraws in real time.
 
 ---
 
-# Execution Controls
+## 🧠 Eight Algorithms
 
-The playground includes four main execution modes designed to make the algorithms easier to explore:
+**🎯 Centroid-based:**
+- **K-Means** with four initialization options (random, Forgy, K-Means++, farthest-first)
+- **Fuzzy C-Means** — soft membership instead of hard assignments
+- **Gaussian Mixture Models (GMM)** — probabilistic clusters with confidence intervals
 
-- **Play ▶️**: runs the selected algorithm as an animation, showing its intermediate steps over time.
-- **Step ⏭️**: advances the selected algorithm by one step, useful for understanding each phase slowly.
-- **Stop 🛑**: stops the current animated execution without clearing the dataset.
-- **Execute ⚡**: runs the selected algorithm immediately and shows the final result.
+**📍 Density-based:**
+- **DBSCAN** — grows clusters from dense cores
+- **HDBSCAN** — hierarchical version with automatic cluster selection
+- **Mean Shift** — kernel density estimation, number of clusters emerges
 
-A speed slider controls how fast the animated execution runs during Play mode.
-
----
-
-# Top Bar
-
-The top bar always shows three pieces of context next to the algorithm picker:
-
-- **Status pill** — a live diagnostic line (`Ready`, `Points: 42`, `K-Means completed in 12 iterations`, …). Replaces the old `Status` section in the sidebar; the sidebar block is now called **Metrics**.
-- **Complexity badge** — the worst-case time complexity for the selected algorithm, color-coded by severity:
-  - 🟦 light: `O(n·k·i)` for K-Means, Fuzzy C-Means, GMM
-  - 🟨 medium: `O(n²)` / `O(n²·i)` for DBSCAN, HDBSCAN, Mean Shift
-  - 🟥 heavy: `O(n³)` for Spectral and Hierarchical Clustering
-- **Safe mode toggle** — on by default. Caps how many points each algorithm is allowed to consume before the browser freezes (e.g. Spectral 180, HCluster 30, K-Means 2000). Turn it off to push past the limits at your own risk.
+**🌐 Structure-based:**
+- **Spectral Clustering** — five Laplacian types to choose from (symmetric, unnormalized, random walk, signless, Bethe Hessian)
+- **Hierarchical Agglomerative** — bottom-up merge with the dendrogram drawn live on the canvas
 
 ---
 
-# Mouse Interaction
+## 🔧 Under the Hood
 
-The application also supports manual insertion of initial centroids.
+The code is split by responsibility:
 
-## Mouse Controls
-
-- Left click -> adds a point on the canvas
-- Right click -> adds a manual centroid on the canvas in K-Means mode
-- Manual centroids can be used by centroid-based algorithms such as K-Means
-
-This mode lets you observe how the initial centroid choice affects the final clustering result.
-
----
-
-# Implemented Algorithms
-
-## Classic / Soft Clustering
-
-- **K-Means** — with four selectable centroid-initialization strategies:
-  - **Random (canvas)** — uniform positions in the canvas
-  - **Forgy (1965)** — k points sampled uniformly from the dataset
-  - **K-Means++ (Arthur & Vassilvitskii 2007)** — probabilistic D² weighted sampling
-  - **Farthest-First (Gonzalez 1985)** — deterministic max-min distance (the original "kpp" button, now correctly labeled)
-- **Fuzzy C-Means**
-- **Gaussian Mixture Models (GMM)** — with model-comparison table across reruns (AIC, BIC, agreement verdict), traffic-light coloring on Fit / point, AIC and BIC
-
-## Density-Based Clustering
-
-- DBSCAN — epsilon parameter changes clear the previous result so the drawn radii always match the input value
-- HDBSCAN
-- Mean Shift
-
-## Structure-Based Clustering
-
-- **Spectral Clustering** — five selectable graph Laplacians:
-  - **Symmetric normalized** `L_sym = I − D^−1/2 W D^−1/2` (Ng-Jordan-Weiss 2002, default)
-  - **Unnormalized** `L = D − W` (textbook combinatorial)
-  - **Random walk** `L_rw = I − D^−1 W` (Shi-Malik 2000, normalized cut)
-  - **Signless** `Q = D + W` (bipartiteness detection; educational)
-  - **Bethe Hessian** `H_β = (β²−1)I + D − βW` (Saade-Krzakala-Zdeborová 2014, with β ≈ √(mean degree))
-- **Hierarchical Clustering** — the dendrogram now grows directly on the main canvas as merges happen, instead of living in a sidebar preview. A yellow marker highlights the most recent merge at every step.
-
----
-
-# Visualizations
-
-The project includes several visualizations designed to make the algorithms easier to understand:
-
-- persistent light/dark theme
-- animated Play mode
-- step-by-step execution
-- instant Execute mode
-- stoppable algorithm animations
-- adjustable animation speed
-- traffic-light quality metrics with explanatory hints — every card explains *why* it is good or bad, and the threshold that flipped its color
-- real-time convergence sparklines for K-Means, GMM, and Fuzzy C-Means
-- Voronoi-style boundaries for K-Means
-- four selectable K-Means centroid initializations (Random, Forgy, K-Means++, Farthest-First)
-- convergence trails for Mean Shift
-- density contour map for Mean Shift
-- epsilon ranges for DBSCAN, with the actual `eps=N` value drawn next to the visited point and stale circles cleared automatically when the parameter changes
-- density regions
-- Gaussian ellipses for GMM
-- GMM confidence metrics, AIC/BIC ranking table, and verdict line ("Agreed: k=N wins on both" when AIC and BIC concur)
-- five selectable graph Laplacians for Spectral Clustering (Symmetric, Unnormalized, Random walk, Signless, Bethe Hessian)
-- sidebar affinity heatmap for Spectral Clustering
-- Minimum Spanning Tree
-- animated dendrogram drawn on the main canvas during Hierarchical Clustering, with a marker on the latest merge
-- membership-based transparency for fuzzy methods
-
----
-
-# Technologies
-
-- Vanilla JavaScript
-- HTML5 Canvas
-- HTML/CSS
-- No external framework
-
----
-
-# Project Structure
-
-The app stays dependency-free, but the code is divided by responsibility instead of living in one large file.
-
-```text
+```
 src/
-  algorithms/  clustering calculations and algorithm steps
-  core/        AppState, Metrics, palette and shared utilities
-  data/        dataset generators
-  render/      Primitives and algorithm-specific renderers
-  main.js      UI coordination, execution flow and startup
+  algorithms/       clustering logic
+  core/             app state, metrics, utilities
+  data/             dataset generators
+  render/           canvas drawing + algorithm-specific renderers
+  ui/               metrics display, charts, legend, pseudocode
+  main.js           controller and event wiring
 ```
 
-Scripts are loaded in dependency order from `index.html`, so the playground still works when opened directly without a development server.
+No build step. Scripts load in order from `index.html`. It works if you just open the file in a browser.
 
-## How The Pieces Work Together
+**Architecture patterns:**
 
-```mermaid
-flowchart LR
-    UI["index.html<br/>controls, tabs and canvas"] --> Main["main.js<br/>events and Strategy/Command registry"]
-    Main --> State["core/state.js<br/>current dataset and execution state"]
-    Main --> Data["data/generators.js<br/>generated and loaded points"]
-    Main --> Algo["algorithms/<br/>clustering and step results"]
-    Algo --> Main
-    Main --> Metrics["core/metrics.js<br/>scores and convergence series"]
-    Main --> Render["render/<br/>Primitives + dedicated renderers"]
-    Render --> UI
-    Metrics --> UI
-    Shared["core/shared.js<br/>helpers and 50-color palette"] -.-> Algo
-    Shared -.-> Render
-```
+The controller (`main.js`) uses a Strategy registry so it doesn't know about specific algorithms. Each algorithm class exposes `run(data, params)` returning `{result, steps}`. Renderers compose shared primitives. Metrics is a private module (IIFE) that computes everything from the result.
 
-`index.html` contains the controls, sidebar panels, and canvas. `main.js` coordinates user actions, asks the selected algorithm for results or animation steps, and passes those results to the matching renderer. `AppState` holds the live session state; `Metrics` computes score cards, the GMM model-comparison ranking, and sparkline data; `Primitives` centralizes shared canvas drawing while each renderer is responsible for the visual language of one algorithm.
-
-The top bar keeps three things always visible: the live diagnostic status pill, the current algorithm's big-O complexity badge, and the safe-mode toggle that enforces per-algorithm point limits. The sidebar is the learning panel: it keeps metric cards visible, plots convergence for iterative algorithms, and shows the Spectral affinity heatmap. HCluster's dendrogram now lives directly on the main canvas (no more sidebar preview) and grows in step with the algorithm.
-
-## Design Patterns
-
-`main.js` uses a small **Strategy** registry: every clustering mode exposes a `run` action and a `draw` action, so the application can switch algorithms without putting all behavior in one controller branch.
-
-The `run` actions also act like lightweight **Commands**: buttons such as Play, Step and Execute invoke the selected behavior through the same entry point, while each algorithm remains focused on its own calculations. A single `safeRun(algorithm)` guard fronts every command and refuses to start when the dataset would freeze the browser — the per-algorithm thresholds are documented as a complexity table right above the function.
-
-The render layer follows a simple shared-base approach: `Primitives` provides reusable canvas operations and theme-aware colors, while dedicated renderer classes compose them for K-Means, DBSCAN, GMM, Spectral, and the other algorithms.
-
-`Metrics` is an **IIFE module** that exposes only `computeMetrics` and `convergenceSeries` — every helper (silhouette, Davies-Bouldin, GMM responsibilities, cross-run AIC/BIC ranking, convergence quality scoring) stays private inside it.
+State lives in `AppState` — one class holds the session (data, result, steps, playback timer, safe mode). Algorithms and renderers stay stateless.
 
 ---
 
-# Educational Goal
+## 💡 Why Build This?
 
-This project is meant to help visualize concepts that are often hard to understand through static images or pure theory.
+Clustering is abstract. You can read about K-Means for an hour and still not understand centroid drift. But watch the red cross jump around for 30 seconds and it clicks.
 
-The goal is not to provide optimized implementations of the algorithms, but to make their behavior observable and intuitive.
+The goal isn't performance or production use. It's making the algorithms visible and playable.
 
-Some algorithms are intentionally simplified or adapted for visual and educational purposes.
+Some simplifications are intentional. The code prioritizes clarity over optimization. If you're studying algorithms, it should be readable. If you're teaching, the animation should be smooth enough for a live demo.
 
 ---
 
-# Local Start
+## 🆕 Recent Changes
 
-Just open:
+- **Refactored view layer:** All UI rendering (metrics cards, charts, legend, pseudocode) moved from `main.js` into `src/ui/` (five dedicated modules). This cut `main.js` from 1726 to 1037 lines and made the code way more navigable.
+- **Backward step:** Added a **Back ⏮️** button. You can now step backwards through an algorithm's execution without replaying it. It's free — the steps are already in memory, so stepping back is O(1).
+- **English comments:** All 22 JS files now have full English comments (converted from Italian). Every module has a header explaining its purpose, and functions document their contract.
+- **AppState owns GMM history:** The GMM comparison table (AIC/BIC ranking) is now part of `AppState` instead of loose globals in `main.js`. Cleaner session management.
 
-```html
-index.html
+---
+
+## 🚀 Local Development
+
+Just open `index.html` in a browser. That's it.
+
+If you want live reload while editing, spin up a static server:
+
+```bash
+python -m http.server 8000
+# or
+npx http-server
 ```
+
+Then open `http://localhost:8000`.
+
+---
+
+## ✅ Testing: Smoke Test
+
+A light smoke test catches the obvious breaks after a refactor. It's in `test/smoke.html`.
+
+**What it checks:**
+
+Each of the eight algorithms gets three quick checks:
+- `run()` doesn't throw and returns `{result, steps}` (the contract)
+- `Metrics.computeMetrics()` doesn't crash on the result
+- `Metrics.convergenceSeries()` doesn't crash on the result
+
+It's not checking if the clustering is *correct*, just that the code doesn't have holes.
+
+**How to run it:**
+
+Open `test/smoke.html` in any browser (even `file://` works). Green badge = all 24 tests passed. Red = something broke. Full output is in the console.
+
+Each test uses a different dataset and different parameter values, so the harness catches both initialization bugs and common edge cases (e.g., empty clusters, single-point datasets, precision edge cases).
+
+**If you add an algorithm:**
+
+Add a case to the `cases` array in `test/smoke.js` — same pattern as the existing eight. The test runner will pick it up and run it alongside the others.
+
+---
+
+## 🔌 How to Extend
+
+To add a new algorithm:
+
+1. Create `src/algorithms/MyAlgo.js` with a class that has `run(data, params)` returning `{result, steps}`.
+2. Create `src/render/MyAlgoRenderer.js` with a renderer class.
+3. Add `<script>` tags to `index.html` in the right order.
+4. Add a control panel in the HTML with `data-panel="myalgo"`.
+5. Wire it into `main.js`: add the instance, add a strategy, bind buttons.
+6. Add complexity badge entry, safe-mode cap, and pseudocode if you like.
+
+The Step/Play/Back flow handles the rest.
+
+---
+
+## 🎯 The Philosophy
+
+- **No dependencies.** Really. HTML, CSS, vanilla JS. Pick it up, run it, read it.
+- **One file at a time.** Each file does one thing. Algorithms don't know about rendering. Renderers don't know about metrics.
+- **Prefer clarity over optimization.** If the code is easier to understand, that's worth a bit of slowness.
+- **Educate, don't impress.** The goal is helping people learn. Not a benchmark, not production-grade, not the fastest clustering library.
+
+---
+
+## 📝 Notes
+
+- 💾 The app works without a server. Open `index.html` directly. Works offline.
+- 🛡️ Safe mode is on by default. It stops you at algorithm-specific point limits (K-Means at 2000, Spectral at 180, HCluster at 30). Turn it off if you know what you're doing.
+- 📊 GMM's AIC/BIC table resets when you change the dataset (detected by hashing point coordinates).
+- ⚙️ Spectral and HCluster are genuinely O(n³), which is why they cap out early. That's not a bug, it's physics.
+- 🌳 The dendrogram for HCluster now grows on the main canvas during execution instead of in a sidebar preview. It's more dramatic that way.
+
+---
+
+## 📚 Resources
+
+- [Interactive Clustering Algorithms](https://www.naftaliharris.com/blog/visualizing-k-means-clustering/) (for inspiration)
+- Original K-Means paper
+- Papers on the various Laplacians (Spectral Clustering guides by Ng, Jordan, and Weiss)
+- Mean Shift references (Comaniciu & Meer)
+- GMM/EM introduction by Murphy or Bishop
+
+This playground doesn't optimize for any of those. It just tries to make them visible.
+
+---
+
+**👨‍💻 Built and maintained solo over three years. Definitely has rough edges. But it works, and it teaches.**

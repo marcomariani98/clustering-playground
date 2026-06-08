@@ -1,40 +1,45 @@
 "use strict";
 
-// K-Means classico. Tengo init_centroid separato dai centroidi finali per
-// poter mostrare entrambi (rosso = start, verde = end) e per fare reset
-// senza buttare via i punti.
+// Classic K-Means clustering algorithm. Keeps init_centroid separate from
+// final centroids so we can show both (red = start, green = end) and reset
+// without losing the dataset. Supports four initialization strategies:
+// random (canvas), Forgy, K-Means++, and Farthest-First.
 class kMeans{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;
-        this.init_centroid = [];
-        this.clusters = [];
-        this.steps = [];
+        this.init_centroid = [];    // Initial centroids chosen by user or init method
+        this.clusters = [];         // Final clustering result
+        this.steps = [];            // Intermediate snapshots for step-by-step execution
     }
 
+    // Clear all state without losing the reference.
     reset(){
         this.init_centroid = [];
         this.clusters = [];
         this.steps = [];
     }
 
+    // Generate k random centroids uniformly distributed over the canvas area.
+    // Used for the "Random (canvas)" initialization.
     generateInitCentroids(k){
         this.init_centroid = [];
 
-        for(let i = 0;i < k;i++){
+        for(let i = 0; i < k; i++){
             this.init_centroid.push({
-                x:Math.floor(Math.random() * this.canvasHandler.width),
-                y:Math.floor(Math.random() * this.canvasHandler.height)
+                x: Math.floor(Math.random() * this.canvasHandler.width),
+                y: Math.floor(Math.random() * this.canvasHandler.height)
             });
         }
 
         return this.init_centroid;
     }
 
-    // Forgy (1965): k punti uniformi presi dal dataset. Classico baseline
-    // pre-2007: veloce e semplice, ma con sfortuna becca due punti vicini
-    // e parte male. Diverso da generateInitCentroids che pesca dal canvas
-    // intero: qui i centroidi nascono sicuramente sopra dei dati.
-    forgyCentroids(data,k){
+    // Forgy (1965) initialization: k uniformly sampled points from the dataset.
+    // A classic pre-2007 baseline: fast and simple, but can get unlucky and pick
+    // two nearby points, leading to poor convergence. Unlike generateInitCentroids
+    // which samples from the entire canvas, Forgy guarantees centroids are placed
+    // exactly on data points.
+    forgyCentroids(data, k){
         this.init_centroid = [];
 
         if(data.length === 0 || k <= 0){

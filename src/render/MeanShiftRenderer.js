@@ -1,5 +1,9 @@
 "use strict";
 
+// Mean Shift visualization. Renders points colored by their converged mode, crosses marking
+// density maxima (modes), circles showing the kernel bandwidth, trails showing point trajectories,
+// contour lines for density levels, and colored bands for KDE intensity regions.
+
 class MeanShiftRenderer{
     constructor(primitives){
         this.p = primitives;

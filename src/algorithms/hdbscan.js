@@ -1,9 +1,9 @@
 "use strict";
 
-// HDBSCAN versione "didattica": core distance -> mutual reachability -> MST ->
-// taglia il MST a vari threshold e tieni il cut con stabilita' migliore.
-// Stabilita' qui e' una versione semplificata (sum of birth-death dei cluster),
-// non quella formale del paper. Va benissimo per visualizzare l'idea.
+// HDBSCAN educational implementation: core distances → mutual reachability graph → MST →
+// cut the MST at various thresholds and keep the cut with the best stability score.
+// Stability here is a simplified version (sum of birth–death times for each cluster),
+// not the formal definition from the original paper, but sufficient for visualization.
 class HDBSCAN{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;

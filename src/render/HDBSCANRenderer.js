@@ -1,5 +1,8 @@
 "use strict";
 
+// HDBSCAN visualization. Renders the Minimum Spanning Tree (MST) on the mutual reachability graph,
+// circles for selected clusters at different density thresholds, and black points for noise.
+
 class HDBSCANRenderer{
     constructor(primitives){
         this.p = primitives;

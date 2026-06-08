@@ -1,8 +1,9 @@
 "use strict";
 
-// Numeri di qualità per ogni algoritmo. Tutto qui dentro è pure: niente DOM,
-// niente canvas, solo math su quello che gli algoritmi hanno gia' calcolato.
-// L'ingresso e' computeMetrics(mode, ctx); il resto sono funzioni interne.
+// Quality metrics for each clustering algorithm. This module is pure: no DOM, no canvas,
+// only math on data already computed by algorithms. Public API: Metrics.computeMetrics(mode, ctx)
+// and Metrics.convergenceSeries(mode, steps). All helper functions (silhouette, Davies-Bouldin,
+// AIC/BIC, GMM responsibilities, convergence scoring) are private inside the IIFE.
 
 const Metrics = (function(){
 

@@ -1,5 +1,9 @@
 "use strict";
 
+// K-Means visualization. Renders initial centroids (red crosses), final centroids (green crosses),
+// dashed lines showing centroid movement, colored regions for Voronoi boundaries (if enabled),
+// and thin lines connecting points to their assigned centroid.
+
 class KMeansRenderer{
     constructor(primitives){
         this.p = primitives;

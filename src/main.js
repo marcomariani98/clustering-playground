@@ -1,23 +1,28 @@
 "use strict";
 
-// Coordina tutto: legge la UI, chiede all'algoritmo di girare, passa al
-// renderer. Vive di tre oggetti: lo stato (AppState), le primitive (Canvas)
-// e il registry di strategie. Niente let globali sparse: tutto e' attaccato
-// a state.
+// Main controller: orchestrates the entire playground lifecycle.
+// Responsibilities:
+// - Initialize and wire together state, canvas, algorithms, and renderers
+// - Bind DOM events and manage user interactions
+// - Coordinate the Play/Step/Execute/Back flow
+// - Delegate to the appropriate algorithm and renderer via modeStrategies
+//
+// Architecture: Session state lives entirely in AppState (src/core/state.js).
+// View rendering (metrics, charts, pseudocode, legend) is delegated to src/ui/ modules.
+// This file stays focused on event orchestration and control flow.
 
-let state;
-let primitives;
+let state;              // Current session state (AppState instance)
+let primitives;         // Canvas handler and drawing primitives
 
-// Una coppia { algorithm, renderer, run, draw } per modalita'. run e' il
-// command che usano i pulsanti Play/Step/Execute; draw e' chiamata a ogni
-// render() e tira fuori dalla UI le opzioni specifiche dell'algoritmo.
+// Mode strategies: one entry per clustering algorithm. Each entry is a pair:
+// { run: function, draw: function }
+// where run() is invoked by Play/Step/Execute buttons and returns {result, steps},
+// and draw() is called during render() to display the current state.
 let modeStrategies;
 
 let kmeans, spectral, fuzzy, meanShift, gmm, dbscan, hdbscan, hcluster;
 let kmeansRenderer, spectralRenderer, fuzzyRenderer, meanShiftRenderer;
 let gmmRenderer, dbscanRenderer, hdbscanRenderer, hclusterRenderer;
-let gmmModelComparisons = [];
-let gmmComparisonDatasetKey = "";
 
 function startApp(){
     initTheme();
@@ -56,11 +61,13 @@ function startApp(){
     render();
 }
 
-// Tema chiaro/scuro. Letto da localStorage al boot, persisto al toggle.
-// Il bottone aggiorna anche l'icona (sole/luna) e ridisegna il canvas per
-// rinfrescare i colori "ink" che dipendono dal tema.
+// Light/dark theme toggle. Persisted to localStorage and read on startup.
+// The theme button updates the icon (sun/moon) and redraws the canvas because
+// several ink colors (legend, grid, text) are theme-dependent.
 const THEME_STORAGE_KEY = "clusteringPlayground.theme";
 
+// Initialize the theme on app startup. Reads from localStorage; defaults to light mode.
+// Sets the data-theme attribute on <html> so CSS can respond with var(--ink-color), etc.
 function initTheme(){
     let saved = null;
     try {
@@ -247,6 +254,10 @@ function bindEvents(){
     DOM("dbscanDrawEps").addEventListener("change", () => render());
 
     DOM("playAlgorithm").addEventListener("click", () => startAutoplay());
+    DOM("stepBackAlgorithm").addEventListener("click", () => {
+        stopAutoplay();
+        showPrevStep();
+    });
     DOM("stepAlgorithm").addEventListener("click", () => {
         stopAutoplay();
         runCurrent(true);
@@ -528,30 +539,7 @@ function changeMode(newMode){
     render();
 }
 
-// Etichetta in alto a destra: notazione big-O del worst-case per l'algoritmo
-// selezionato. Severity (heavy/medium/light) colora il badge come "alert" visivo
-// quando l'algoritmo e' costoso. Stesse soglie usate da safeRun.
-function updateComplexityBadge(){
-    let badge = DOM("complexityBadge");
-    let value = DOM("complexityValue");
-    if(!badge || !value) return;
-
-    let map = {
-        kmeans:    { expr: "O(n·k·i)",  severity: "light"  },
-        fuzzy:     { expr: "O(n·k·i)",  severity: "light"  },
-        gmm:       { expr: "O(n·k·i)",  severity: "light"  },
-        dbscan:    { expr: "O(n²)",     severity: "medium" },
-        hdbscan:   { expr: "O(n²)",     severity: "medium" },
-        meanshift: { expr: "O(n²·i)",   severity: "medium" },
-        spectral:  { expr: "O(n³)",     severity: "heavy"  },
-        hcluster:  { expr: "O(n³)",     severity: "heavy"  }
-    };
-
-    let entry = map[state.mode] || { expr: "O(?)", severity: "light" };
-    value.textContent = entry.expr;
-    badge.dataset.severity = entry.severity;
-    badge.title = `Worst-case time complexity for ${state.mode}. n = points, k = clusters, i = iterations.`;
-}
+// updateComplexityBadge() vive in src/ui/legend.js
 
 // Mappa slider 1-100 in delay 120-1050ms (piu' lo slider e' alto, piu' veloce).
 function getAutoDelay(){
@@ -607,98 +595,7 @@ function runCurrent(isStep){
     modeStrategies[state.mode].run(isStep);
 }
 
-function getLegendItems(){
-    if(state.mode === "kmeans"){
-        return [
-            "Red cross = initial centroids",
-            "Green cross = final centroids",
-            "Dashed lines = centroid movement",
-            "Thin lines = point assignment",
-            "Background = nearest-centroid region"
-        ];
-    }
-
-    if(state.mode === "gmm"){
-        return [
-            "Ellipse = Gaussian covariance",
-            "Cross = component mean",
-            "Transparency = point confidence"
-        ];
-    }
-
-    if(state.mode === "dbscan"){
-        return [
-            "Color = cluster",
-            "Blue radius = current epsilon query",
-            "Blue lines = points inside epsilon",
-            "Purple = border point",
-            "Black = noise",
-            "Circle = epsilon range"
-        ];
-    }
-
-    if(state.mode === "meanshift"){
-        return [
-            "Colored points = final cluster",
-            "Cross = mode / density maximum",
-            "Circle = bandwidth",
-            "Trail = shift toward density",
-            "Curves = density function levels",
-            "Colored bands = KDE intensity",
-            "Gray = micro-cluster or noise"
-        ];
-    }
-
-    if(state.mode === "hdbscan"){
-        return [
-            "Lines = MST on mutual reachability",
-            "Circles = selected clusters",
-            "Black = noise",
-            "Threshold = density level in the step"
-        ];
-    }
-
-    if(state.mode === "spectral"){
-        let info = getSpectralLaplacianInfo();
-        return [
-            "Blue edges = strongest RBF affinities",
-            "Blue halos = point degree in the graph",
-            "Mini plot = spectral embedding",
-            `${info.shortLabel} = transformed space`,
-            "Colors = final clusters after K-Means"
-        ];
-    }
-
-    if(state.mode === "fuzzy"){
-        return [
-            "Transparency = maximum membership",
-            "Purple halo = ambiguous membership",
-            "Weighted lines = strongest memberships",
-            "Dashed lines = fuzzy centroid movement",
-            "Cross = centroid",
-            "Soft colors = soft membership"
-        ];
-    }
-
-    return [
-        "Link = distance between sub-clusters",
-        "C/P labels = clusters and points kept in the steps",
-        "Final tree = complete hierarchy"
-    ];
-}
-
-function updateLegend(){
-    let legend = DOM("legendText");
-
-    if(!DOM("showLegend").checked){
-        legend.innerHTML = "<li>Legend hidden</li>";
-        return;
-    }
-
-    legend.innerHTML = getLegendItems()
-        .map((item) => `<li>${item}</li>`)
-        .join("");
-}
+// getLegendItems() e updateLegend() vivono in src/ui/legend.js
 
 function getSpectralLaplacianType(){
     let option = document.querySelector("input[name=\"spectralLaplacian\"]:checked");
@@ -716,532 +613,16 @@ function getSpectralLaplacianInfo(){
     return options[getSpectralLaplacianType()] || options.symmetric;
 }
 
-function getPseudocode(){
-    if(state.mode === "kmeans"){
-        return `let centroids = chooseInitialCentroids(data, k);
-let converged = false;
-
-while (!converged) {
-  const oldCentroids = centroids;
-
-  const clusters = assignPoints(data, centroids);
-  centroids = updateCentroids(clusters);
-
-  converged = hasConverged(oldCentroids, centroids);
-}`;
-    }
-
-    if(state.mode === "spectral"){
-        let laplacianType = getSpectralLaplacianType();
-        return `let W = buildAffinityMatrix(data, sigma);
-let L = graphLaplacian(W, { type: "${laplacianType}" });
-
-let vectors = smallestEigenvectors(L, k);
-let embedding = buildEmbedding(vectors);
-
-return kMeans(embedding, k);`;
-    }
-
-    if(state.mode === "fuzzy"){
-        return `let membership = randomMembership(data, k);
-let centroids;
-
-for (let i = 0; i < maxIterations; i++) {
-  const oldMembership = membership;
-
-  centroids = updateWeightedCentroids(data, membership);
-  membership = updateMemberships(data, centroids);
-
-  if (hasConverged(oldMembership, membership)) {
-break;
-  }
-}
-
-return strongestMembership(membership);`;
-    }
-
-    if(state.mode === "meanshift"){
-        return `let shifted = copyPoints(data);
-let stable = false;
-
-while (!stable) {
-  stable = true;
-
-  for (let i = 0; i < shifted.length; i++) {
-let neighbors = pointsWithinBandwidth(shifted[i], shifted);
-let newPoint = weightedMean(neighbors);
-
-if (distance(shifted[i], newPoint) > tolerance) {
-  stable = false;
-}
-
-shifted[i] = newPoint;
-  }
-}
-
-let modes = mergeNearbyPoints(shifted);
-return assignPointsToModes(data, modes);`;
-    }
-
-    if(state.mode === "gmm"){
-        return `let components = initializeGaussians(data, k);
-let responsibilities;
-
-for (let i = 0; i < maxIterations; i++) {
-  const oldComponents = components;
-
-  responsibilities = estimateMemberships(data, components);
-  components = updateGaussians(data, responsibilities);
-
-  if (hasConverged(oldComponents, components)) {
-break;
-  }
-}
-
-return mostLikelyComponent(responsibilities);`;
-    }
-
-    if(state.mode === "dbscan"){
-        return `let clusterId = 0;
-
-for (let point of data) {
-  if (point.visited) continue;
-
-  point.visited = true;
-  let neighbors = regionQuery(point, epsilon);
-
-  if (neighbors.length < minPts) {
-markAsNoise(point);
-  } else {
-clusterId++;
-expandCluster(point, neighbors, clusterId, epsilon, minPts);
-  }
-}`;
-    }
-
-    if(state.mode === "hdbscan"){
-        return `let coreDistances = computeCoreDistances(data, minPts);
-let graph = mutualReachabilityGraph(data, coreDistances);
-
-let mst = minimumSpanningTree(graph);
-let condensedTree = condenseTree(mst, minClusterSize);
-
-let clusters = extractMostStableClusters(condensedTree);
-
-return clusters;`;
-    }
-
-    return `let clusters = data.map(point => [point]);
-let merges = [];
-
-while (clusters.length > 1) {
-  let pair = findClosestClusters(clusters);
-  let distance = clusterDistance(pair[0], pair[1]);
-
-  merges.push({ pair, distance });
-
-  clusters = mergePair(clusters, pair);
-}
-
-return buildDendrogram(merges);`;
-}
-
-function escapeHtml(text){
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-}
-
-function pseudocodeToken(type, value){
-    return `<span class="token-${type}">${escapeHtml(value)}</span>`;
-}
-
-// Tokenizer fatto a mano per evitare di tirarsi dietro Prism/highlight.js.
-// Riconosce keyword/numeri/stringhe/identificatori/operatori — il minimo
-// per dare colore allo pseudocodice nel popover.
-function highlightPseudocode(code){
-    let keywords = new Set(["let", "const", "return", "while", "for", "if", "else", "continue", "break", "of"]);
-    let constants = new Set(["true", "false", "null", "undefined"]);
-    let html = "";
-    let i = 0;
-
-    while(i < code.length){
-        let char = code[i];
-
-        if(/\s/.test(char)){
-            html += char;
-            i++;
-            continue;
-        }
-
-        if(char === "\"" || char === "'"){
-            let quote = char;
-            let j = i + 1;
-            while(j < code.length && code[j] !== quote){
-                if(code[j] === "\\") j++;
-                j++;
-            }
-            html += pseudocodeToken("string", code.slice(i, Math.min(j + 1, code.length)));
-            i = Math.min(j + 1, code.length);
-            continue;
-        }
-
-        if(/[0-9]/.test(char)){
-            let j = i + 1;
-            while(j < code.length && /[0-9.]/.test(code[j])) j++;
-            html += pseudocodeToken("number", code.slice(i, j));
-            i = j;
-            continue;
-        }
-
-        if(/[A-Za-z_$]/.test(char)){
-            let j = i + 1;
-            while(j < code.length && /[A-Za-z0-9_$]/.test(code[j])) j++;
-
-            let word = code.slice(i, j);
-            let next = j;
-            let previous = i - 1;
-            while(next < code.length && /\s/.test(code[next])) next++;
-            while(previous >= 0 && /\s/.test(code[previous])) previous--;
-
-            if(keywords.has(word)){
-                html += pseudocodeToken("keyword", word);
-            }else if(constants.has(word)){
-                html += pseudocodeToken("number", word);
-            }else if(code[previous] === "."){
-                html += pseudocodeToken("property", word);
-            }else if(code[next] === "("){
-                html += pseudocodeToken("function", word);
-            }else{
-                html += pseudocodeToken("variable", word);
-            }
-
-            i = j;
-            continue;
-        }
-
-        if("+-*/=%!<>|&".includes(char)){
-            let nextChar = code[i + 1] || "";
-            let value = char;
-            if("=><&|".includes(nextChar)){
-                value += nextChar;
-                i++;
-            }
-            html += pseudocodeToken("operator", value);
-            i++;
-            continue;
-        }
-
-        html += pseudocodeToken("punctuation", char);
-        i++;
-    }
-
-    return html;
-}
-
-function updatePseudocode(){
-    let box = DOM("pseudocodeBox");
-    if(!box) return;
-    box.innerHTML = highlightPseudocode(getPseudocode());
-}
-
-function updateMetrics(){
-    let panel = DOM("metricsPanel");
-    if(!panel) return;
-
-    updateQualityLegend();
-    updateConvergenceChart();
-    panel.classList.toggle("gmm-dashboard", state.mode === "gmm" && state.metricsReady && state.currentResult);
-
-    if(!state.metricsReady || !state.currentResult){
-        panel.innerHTML = "<p class=\"hint\">Metrics will appear after Play or after the last Step.</p>";
-        return;
-    }
-
-    let metrics = Metrics.computeMetrics(state.mode, {
-        data: state.data,
-        result: state.currentResult,
-        steps: state.currentSteps,
-        canvasSize: Math.min(primitives.width, primitives.height),
-        modelComparisons: state.mode === "gmm" ? gmmModelComparisons : []
-    });
-
-    if(metrics.length === 0){
-        panel.innerHTML = "<p class=\"hint\">Metrics are not available for this result.</p>";
-        return;
-    }
-
-    panel.innerHTML = state.mode === "gmm"
-        ? renderGMMMetrics(metrics, gmmModelComparisons)
-        : metrics.map((metric) => renderMetricCard(metric)).join("");
-}
-
-function renderGMMMetrics(metrics, comparisons){
-    let find = (key) => metrics.find((metric) => metric.key === key);
-    let assignment = [find("confidence"), find("uncertain")].filter(Boolean);
-    let modelSelection = [find("avgLikelihood"), find("aic"), find("bic")].filter(Boolean);
-    let comparisonBlock = renderGMMComparisonTable(comparisons);
-    let comparisonHelp = comparisons && comparisons.length >= 2
-        ? `<p class="gmm-comparison-note">Each row is one run on this dataset. The highlighted row wins for its score (lower = better). When AIC and BIC pick the same k, you can trust it.</p>`
-        : `<p class="gmm-comparison-note">Rerun GMM on the same points with a different number of components to compare. AIC and BIC reward fit and punish complexity — lower wins.</p>`;
-
-    return `
-        <p class="gmm-metrics-intro">How confidently each Gaussian explains the points, followed by scores for comparing component counts.</p>
-        <span class="metric-group-label">Assignments</span>
-        <div class="gmm-metric-grid">
-            ${assignment.map((metric) => renderMetricCard(metric, "metric-compact")).join("")}
-        </div>
-        <span class="metric-group-label">Model comparison</span>
-        <div class="gmm-model-grid">
-            ${modelSelection.map((metric) => renderMetricCard(metric, "metric-compact")).join("")}
-        </div>
-        ${comparisonBlock}
-        ${comparisonHelp}
-    `;
-}
-
-// Tabella che mette in colonna tutte le run salvate per il dataset corrente:
-// AIC e BIC vanno sempre letti "lower is better", e qui il "lower" e' visualizzato
-// come barretta corta. La run attuale e' evidenziata; quelle che vincono AIC o BIC
-// hanno il gradient di sfondo.
-function renderGMMComparisonTable(comparisons){
-    if(!comparisons || comparisons.length < 2){
-        return "";
-    }
-
-    let currentK = state.currentResult && state.currentResult.components
-        ? state.currentResult.components.length
-        : null;
-
-    let sorted = comparisons.slice().sort((a, b) => a.components - b.components);
-    let aicValues = sorted.map((entry) => entry.aic);
-    let bicValues = sorted.map((entry) => entry.bic);
-    let bestAic = Math.min(...aicValues);
-    let bestBic = Math.min(...bicValues);
-    let aicMax = Math.max(...aicValues);
-    let bicMax = Math.max(...bicValues);
-
-    let bestAicK = sorted.find((entry) => Math.abs(entry.aic - bestAic) < 0.000001).components;
-    let bestBicK = sorted.find((entry) => Math.abs(entry.bic - bestBic) < 0.000001).components;
-
-    let normalize = (value, min, max) => {
-        if(max - min < 0.000001) return 1;
-        // Inverso: piu' basso = barra piu' piena (lower is better).
-        return 1 - (value - min) / (max - min);
-    };
-
-    let rows = sorted.map((entry) => {
-        let isCurrent = entry.components === currentK;
-        let isBestAic = Math.abs(entry.aic - bestAic) < 0.000001;
-        let isBestBic = Math.abs(entry.bic - bestBic) < 0.000001;
-        let aicFill = (0.20 + 0.80 * normalize(entry.aic, bestAic, aicMax)) * 100;
-        let bicFill = (0.20 + 0.80 * normalize(entry.bic, bestBic, bicMax)) * 100;
-        let badge = isBestBic ? "★" : (isBestAic ? "☆" : "");
-        let classes = ["gmm-comparison-row"];
-
-        if(isCurrent) classes.push("is-current");
-        if(isBestBic) classes.push("is-best-bic");
-        else if(isBestAic) classes.push("is-best-aic");
-
-        return `
-            <div class="${classes.join(" ")}" title="${isCurrent ? "Current run" : "Previous run"}">
-                <span class="gmm-comparison-k">k=${entry.components}${isCurrent ? " ●" : ""}</span>
-                <div class="gmm-comparison-bar" title="AIC ${formatComparisonNumber(entry.aic)}">
-                    <div class="gmm-comparison-bar-fill" style="width: ${aicFill.toFixed(1)}%"></div>
-                    <span class="gmm-comparison-bar-value">${formatComparisonNumber(entry.aic)}</span>
-                </div>
-                <div class="gmm-comparison-bar" title="BIC ${formatComparisonNumber(entry.bic)}">
-                    <div class="gmm-comparison-bar-fill" style="width: ${bicFill.toFixed(1)}%"></div>
-                    <span class="gmm-comparison-bar-value">${formatComparisonNumber(entry.bic)}</span>
-                </div>
-                <span class="gmm-comparison-badge" title="${isBestBic ? "Best BIC overall" : (isBestAic ? "Best AIC overall" : "")}">${badge}</span>
-            </div>
-        `;
-    }).join("");
-
-    let agreement = bestAicK === bestBicK
-        ? `<span><strong>Agreed:</strong> k=${bestBicK} wins on both</span>`
-        : `<span>AIC prefers <strong>k=${bestAicK}</strong>, BIC prefers <strong>k=${bestBicK}</strong></span>`;
-
-    return `
-        <div class="gmm-comparison-table" role="table" aria-label="GMM model comparison">
-            <div class="gmm-comparison-header" role="row">
-                <span>Run</span>
-                <span>AIC ↓</span>
-                <span>BIC ↓</span>
-                <span></span>
-            </div>
-            ${rows}
-            <div class="gmm-comparison-verdict">${agreement}</div>
-        </div>
-    `;
-}
-
-function formatComparisonNumber(value){
-    if(!Number.isFinite(value)) return "n/d";
-    let abs = Math.abs(value);
-    if(abs >= 10000) return value.toFixed(0);
-    if(abs >= 100) return value.toFixed(0);
-    return value.toFixed(1);
-}
-
-function renderMetricCard(metric, extraClass = ""){
-    let indicator = `<span class="metric-dot" aria-label="${escapeAttr(metric.title)}"></span>`;
-    let bar = "";
-
-    // Gauge bars are used only by metrics with an interpretable [0,1] range.
-    if(typeof metric.bar === "number"){
-        let pct = metric.barInvert ? (1 - metric.bar) * 100 : metric.bar * 100;
-        bar = `<div class="metric-bar"><div class="metric-bar-fill" style="width: ${pct.toFixed(1)}%"></div></div>`;
-    }
-
-    let hint = metric.title ? `<p class="metric-hint">${escapeHtml(metric.title)}</p>` : "";
-
-    return `
-        <div class="metric-item quality-${metric.quality} ${extraClass}" title="${escapeAttr(metric.title)}">
-            <span class="metric-name">${escapeHtml(metric.name)}</span>
-            <span class="metric-value">${escapeHtml(metric.value)}</span>
-            ${indicator}
-            ${bar}
-            ${hint}
-        </div>
-    `;
-}
-
-function escapeAttr(text){
-    return String(text || "").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// Sparkline sotto le metriche: traccia il valore "convergente" passo per passo.
-// La serie viene calcolata in metrics.js — qui ci si limita al disegno.
-function updateConvergenceChart(){
-    let wrap = DOM("convergenceWrap");
-    if(!wrap) return;
-
-    let series = state.hasSteps()
-        ? Metrics.convergenceSeries(state.mode, state.currentSteps)
-        : null;
-
-    if(!series){
-        wrap.classList.add("hidden");
-        return;
-    }
-
-    wrap.classList.remove("hidden");
-    DOMsetValue("convergenceLabel", `${series.label} - ${series.values.length} steps`);
-
-    let first = series.values[0];
-    let last = series.values[series.values.length - 1];
-    DOMsetValue("convergenceRange", `${formatSpark(first)} → ${formatSpark(last)}`);
-
-    drawSparkline(DOM("convergenceCanvas"), series);
-}
-
-function formatSpark(value){
-    if(!Number.isFinite(value)) return "n/d";
-    let abs = Math.abs(value);
-    if(abs >= 1000) return value.toFixed(0);
-    if(abs >= 10) return value.toFixed(1);
-    return value.toFixed(2);
-}
-
-function drawSparkline(canvas, series){
-    let ctx = canvas.getContext("2d");
-    let dpr = window.devicePixelRatio || 1;
-    let cssWidth = canvas.clientWidth || canvas.width;
-    let cssHeight = canvas.clientHeight || canvas.height;
-
-    if(canvas.width !== cssWidth * dpr || canvas.height !== cssHeight * dpr){
-        canvas.width = cssWidth * dpr;
-        canvas.height = cssHeight * dpr;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssWidth, cssHeight);
-
-    let values = series.values;
-    let min = Math.min(...values);
-    let max = Math.max(...values);
-    let range = max - min || 1;
-    let pad = 4;
-    let plotW = cssWidth - pad * 2;
-    let plotH = cssHeight - pad * 2;
-
-    let pointAt = (i) => ({
-        x: pad + (values.length === 1 ? 0 : (i / (values.length - 1)) * plotW),
-        y: pad + (1 - (values[i] - min) / range) * plotH
-    });
-
-    // Area sotto la curva, sfumata.
-    let accent = isDarkTheme() ? "#4f8cff" : "#1769e0";
-    let last = pointAt(values.length - 1);
-    let first = pointAt(0);
-
-    ctx.beginPath();
-    ctx.moveTo(first.x, cssHeight - pad);
-    for(let i = 0; i < values.length; i++){
-        let p = pointAt(i);
-        ctx.lineTo(p.x, p.y);
-    }
-    ctx.lineTo(last.x, cssHeight - pad);
-    ctx.closePath();
-    let grad = ctx.createLinearGradient(0, pad, 0, cssHeight - pad);
-    grad.addColorStop(0, hexToRgba(accent, 0.28));
-    grad.addColorStop(1, hexToRgba(accent, 0));
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // Linea principale
-    ctx.beginPath();
-    for(let i = 0; i < values.length; i++){
-        let p = pointAt(i);
-        if(i === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-    }
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = "round";
-    ctx.stroke();
-
-    // Dot finale per evidenziare l'ultimo valore.
-    ctx.beginPath();
-    ctx.arc(last.x, last.y, 3, 0, 2 * Math.PI, false);
-    ctx.fillStyle = accent;
-    ctx.fill();
-}
-
-function isDarkTheme(){
-    return document.documentElement.dataset.theme === "dark";
-}
-
-function hexToRgba(hex, alpha){
-    let raw = hex.replace("#", "");
-    let r = parseInt(raw.slice(0, 2), 16);
-    let g = parseInt(raw.slice(2, 4), 16);
-    let b = parseInt(raw.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function updateQualityLegend(){
-    let legend = DOM("qualityLegend");
-    if(!legend) return;
-
-    if(state.mode === "gmm"){
-        legend.innerHTML = `
-            <span><i class="good-dot"></i> good</span>
-            <span><i class="medium-dot"></i> mixed</span>
-            <span><i class="bad-dot"></i> weak</span>
-            <span><i class="neutral-dot"></i> needs comparison</span>
-        `;
-        return;
-    }
-
-    legend.innerHTML = `
-        <span><i class="good-dot"></i> green good</span>
-        <span><i class="medium-dot"></i> yellow medium</span>
-        <span><i class="bad-dot"></i> red weak</span>
-    `;
-}
+// getPseudocode(), highlightPseudocode() e updatePseudocode() vivono in
+// src/ui/pseudocode.js; escapeHtml() in src/ui/view-helpers.js.
+
+// updateMetrics(), renderGMMMetrics(), renderGMMComparisonTable(),
+// formatComparisonNumber() e renderMetricCard() vivono in src/ui/metrics-view.js;
+// escapeAttr() in src/ui/view-helpers.js.
+
+// updateConvergenceChart(), formatSpark() e drawSparkline() vivono in
+// src/ui/charts.js; isDarkTheme() e hexToRgba() in src/ui/view-helpers.js;
+// updateQualityLegend() in src/ui/legend.js.
 
 // I runX leggono controlli, lanciano l'algoritmo, mettono in state {result, steps}.
 // In modalita' step rivelano lo step successivo, altrimenti il risultato finale.
@@ -1425,9 +806,9 @@ function rememberGMMComparison(componentCount, result){
         .map((point) => `${point.x.toFixed(3)},${point.y.toFixed(3)}`)
         .join("|");
 
-    if(datasetKey !== gmmComparisonDatasetKey){
-        gmmComparisonDatasetKey = datasetKey;
-        gmmModelComparisons = [];
+    if(datasetKey !== state.gmmComparisonDatasetKey){
+        state.gmmComparisonDatasetKey = datasetKey;
+        state.gmmModelComparisons = [];
     }
 
     let logLikelihood = Number.isFinite(result.logLikelihood) ? result.logLikelihood : 0;
@@ -1438,12 +819,12 @@ function rememberGMMComparison(componentCount, result){
         aic: 2 * parameterCount - 2 * logLikelihood,
         bic: Math.log(pointCount) * parameterCount - 2 * logLikelihood
     };
-    let existingIndex = gmmModelComparisons.findIndex((candidate) => candidate.components === componentCount);
+    let existingIndex = state.gmmModelComparisons.findIndex((candidate) => candidate.components === componentCount);
 
     if(existingIndex === -1){
-        gmmModelComparisons.push(entry);
+        state.gmmModelComparisons.push(entry);
     }else{
-        gmmModelComparisons[existingIndex] = entry;
+        state.gmmModelComparisons[existingIndex] = entry;
     }
 }
 
@@ -1576,6 +957,23 @@ function showNextStep(){
     render();
 }
 
+// Speculare a showNextStep: nessun ricalcolo, solo riposizionamento sull'array
+// di step gia' in memoria. Serve aver gia' generato gli step (Step/Play/Execute).
+function showPrevStep(){
+    if(!state.hasSteps()){
+        setStatus("Run the algorithm first to step through it");
+        return;
+    }
+    let step = state.retreatStep();
+    if(!step){
+        setStatus("Already at the first step");
+        return;
+    }
+    let label = step.phaseLabel ? `: ${step.phaseLabel}` : "";
+    setStatus(`Step ${state.stepIndex}/${state.currentSteps.length}${label}`);
+    render();
+}
+
 function render(){
     DOMsetValue("pointCounter", `Points: ${state.data.length}`);
     updateLegend();
@@ -1583,65 +981,7 @@ function render(){
     updatePreviews();
 }
 
-// Mini-anteprime sempre visibili in sidebar: heatmap affinity per Spectral,
-// dendrogramma compatto per HCluster. Spariscono quando non c'e' un risultato.
-function updatePreviews(){
-    let spectralWrap = DOM("spectralPreviewWrap");
-    if(spectralWrap){
-        if(state.mode === "spectral" && state.currentResult && state.currentResult.affinity){
-            spectralWrap.classList.remove("hidden");
-            drawAffinityHeatmap(DOM("spectralPreview"), state.currentResult);
-        }else{
-            spectralWrap.classList.add("hidden");
-        }
-    }
-
-    // Il dendrogramma di HCluster ora cresce direttamente sul canvas principale
-    // (HClusterRenderer._drawTree) animato a ogni merge: niente preview sidebar.
-}
-
-// Heatmap NxN della matrice di affinity. Ogni cella e' una "celletta" colorata
-// in base al peso (0 = trasparente, 1 = accent). N cresce con il dataset, ma
-// l'algoritmo Spectral e' gia' cap a 180 punti quindi la heatmap rimane sotto controllo.
-function drawAffinityHeatmap(canvas, result){
-    let ctx = canvas.getContext("2d");
-    let dpr = window.devicePixelRatio || 1;
-    let cssSize = Math.max(canvas.clientWidth, 180);
-
-    if(canvas.width !== cssSize * dpr){
-        canvas.width = cssSize * dpr;
-        canvas.height = cssSize * dpr;
-    }
-    canvas.style.height = `${cssSize}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    let affinity = result.affinity;
-    let n = affinity.length;
-    if(n === 0) return;
-
-    let cell = cssSize / n;
-    let dark = isDarkTheme();
-    let bg = dark ? "#0f1729" : "#ffffff";
-    let accent = dark ? [79, 140, 255] : [23, 105, 224];
-
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, cssSize, cssSize);
-
-    for(let i = 0; i < n; i++){
-        for(let j = 0; j < n; j++){
-            let weight = affinity[i][j] || 0;
-            if(weight < 0.02) continue;
-            let alpha = Math.min(1, weight);
-            ctx.fillStyle = `rgba(${accent[0]}, ${accent[1]}, ${accent[2]}, ${alpha})`;
-            ctx.fillRect(j * cell, i * cell, Math.max(1, cell), Math.max(1, cell));
-        }
-    }
-
-    // Cornice sottile per dare il senso di "matrice".
-    ctx.strokeStyle = dark ? "rgba(148,163,184,0.30)" : "rgba(148,163,184,0.50)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, cssSize - 1, cssSize - 1);
-}
+// updatePreviews() e drawAffinityHeatmap() vivono in src/ui/charts.js
 
 function clearResult(){
     stopAutoplay(false);

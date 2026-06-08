@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke test — Clustering Playground</title>
+  <style>
+    body{font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f1729;color:#e2e8f0;margin:0;padding:24px;}
+    h1{font-size:16px;margin:0 0 4px;}
+    p.sub{color:#94a3b8;margin:0 0 16px;max-width:60ch;}
+    #summary{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;margin-bottom:16px;background:#243049;color:#94a3b8;}
+    #summary.pass{background:#16331f;color:#5be08a;}
+    #summary.fail{background:#3a1620;color:#ff6b88;}
+    #out div{padding:1px 0;white-space:pre-wrap;}
+    .pass{color:#5be08a;}
+    .fail{color:#ff6b88;}
+    .head{color:#9db4ff;font-weight:700;}
+  </style>
+</head>
+<body>
+  <h1>Clustering Playground – Smoke test</h1>
+  <p class="sub">Open this file in any browser (even <code>file://</code> works). Green means no regressions in the <code>run() → { result, steps }</code> contract or metrics. Full output is also in console.</p>
+  <div id="summary">running…</div>
+  <div id="out"></div>
+
+  <!-- Load only what algorithms and metrics need. No renderers, no UI, no main.js. -->
+  <script src="../src/core/shared.js"></script>
+  <script src="../src/data/generators.js"></script>
+
+  <script src="../src/algorithms/kmeans.js"></script>
+  <script src="../src/algorithms/spectral.js"></script>
+  <script src="../src/algorithms/fuzzy-c-means.js"></script>
+  <script src="../src/algorithms/mean-shift.js"></script>
+  <script src="../src/algorithms/gmm.js"></script>
+  <script src="../src/algorithms/dbscan.js"></script>
+  <script src="../src/algorithms/hdbscan.js"></script>
+  <script src="../src/algorithms/hcluster.js"></script>
+
+  <script src="../src/core/metrics.js"></script>
+
+  <script src="smoke.js"></script>
+</body>
+</html>

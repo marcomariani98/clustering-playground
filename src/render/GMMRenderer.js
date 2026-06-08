@@ -1,5 +1,9 @@
 "use strict";
 
+// Gaussian Mixture Model visualization. Renders points colored by their most likely Gaussian,
+// ellipses showing the 2-sigma covariance of each component, crosses marking component means,
+// and transparency proportional to point confidence (responsibility).
+
 class GMMRenderer{
     constructor(primitives){
         this.p = primitives;

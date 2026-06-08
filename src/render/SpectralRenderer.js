@@ -1,5 +1,9 @@
 "use strict";
 
+// Spectral Clustering visualization. Renders the affinity matrix as edges between nearby points,
+// point degrees as blue halos, the embedded space (lower-left corner), and final K-Means clusters
+// in color. The affinity heatmap is drawn in the sidebar by src/ui/charts.js.
+
 class SpectralRenderer{
     constructor(primitives){
         this.p = primitives;

@@ -1,8 +1,8 @@
 "use strict";
 
-// Fuzzy C-Means. Ogni punto appartiene un po' a tutti i cluster; l'esponente
-// m controlla quanto "morbida" e' l'appartenenza (m -> 1 si avvicina a K-Means,
-// m grande appiattisce le membership).
+// Fuzzy C-Means clustering. Each point has a degree of membership to each cluster
+// rather than a hard assignment. The exponent m controls the "fuzziness" of membership:
+// m → 1 converges toward hard K-Means behavior; large m makes membership uniform across all clusters.
 class FuzzyCMeans{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;

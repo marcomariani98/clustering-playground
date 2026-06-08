@@ -1,8 +1,8 @@
 "use strict";
 
-// Mean Shift. Ogni punto sale verso un massimo locale di densita' usando
-// un kernel Gaussiano col bandwidth scelto. I punti che convergono allo
-// stesso "mode" diventano un cluster — il numero di cluster emerge da solo.
+// Mean Shift clustering. Each point shifts toward a local density maximum using
+// a Gaussian kernel with the user-selected bandwidth. Points that converge to the same
+// "mode" form a cluster. The number of clusters emerges automatically from the data.
 class MeanShift{
     constructor(canvasHandler){
         this.canvasHandler = canvasHandler;
