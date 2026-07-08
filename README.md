@@ -16,6 +16,20 @@ This project has been in development on and off for about three years, through a
 
 The core idea is simple: clustering algorithms are easier to understand when you see them work. Theory is fine. But watching K-Means centroid movement or how DBSCAN grows clusters from density seeds makes intuition stick.
 
+![Example 1](imgs/1.png)
+
+---
+
+# 📷 Other examples
+
+![Example 2](imgs/2.png)
+
+![Example 3](imgs/3.png)
+
+![Example 4](imgs/4.png)
+
+![Example 5](imgs/5.png)
+
 ---
 
 ## ✨ What You Can Do
